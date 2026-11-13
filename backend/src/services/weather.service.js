@@ -1,3 +1,26 @@
+const getRisk = (current, hourly) => {
+  // Open-Meteo returns local timestamps and hourly precipitation for the preceding hour.
+  const nextHour = hourly.time.findIndex((time) => time > current.time);
+  const upcoming = nextHour === -1
+    ? []
+    : hourly.precipitation.slice(nextHour, nextHour + 3).filter(Number.isFinite);
+  const peak = upcoming.length ? Math.max(...upcoming) : null;
+  const rain = current.rain;
+  const humidity = current.humidity;
+
+  // Heuristic points (0–100), not a probability or an official warning.
+  const rainPoints = Math.min(25, (rain ?? 0) * 5);
+  const humidityPoints = humidity >= 90 ? 15 : humidity >= 80 ? 8 : 0;
+  const forecastPoints = Math.min(60, (peak ?? 0) * 4);
+  const score = Math.round(rainPoints + humidityPoints + forecastPoints);
+
+  return {
+    level: score >= 60 ? "High" : score >= 25 ? "Watch" : "Low",
+    score,
+    reason: `Current rain: ${Number.isFinite(rain) ? `${rain} mm` : "unavailable"}; humidity: ${Number.isFinite(humidity) ? `${humidity}%` : "unavailable"}; peak in the next three forecast hours: ${peak === null ? "unavailable" : `${peak} mm`}.`,
+  };
+};
+
 export const getWeatherData = async (latitude, longitude) => {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
 
@@ -22,7 +45,7 @@ export const getWeatherData = async (latitude, longitude) => {
 
   const data = await response.json();
 
-  return {
+  const weather = {
     location: {
       latitude,
       longitude,
@@ -45,4 +68,6 @@ export const getWeatherData = async (latitude, longitude) => {
       humidity: data.hourly.relative_humidity_2m,
     },
   };
+
+  return { ...weather, risk: getRisk(weather.current, weather.hourly) };
 };
