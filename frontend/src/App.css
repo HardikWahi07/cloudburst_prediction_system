@@ -23,6 +23,30 @@ body {
   margin-top: 36px;
 }
 
+.risk {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.risk--low {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.risk--watch {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.risk--high {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
 .town-picker {
   display: inline-flex;
   align-items: center;

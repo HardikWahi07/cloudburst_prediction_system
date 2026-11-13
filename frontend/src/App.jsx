@@ -59,6 +59,12 @@ function App() {
   return (
     <div className="dashboard">
       <h1>Cloudburst Prediction System</h1>
+      {weather?.risk && (
+        <p className={`risk risk--${weather.risk.level.toLowerCase()}`}>
+          <strong>Cloudburst risk: {weather.risk.level}</strong>
+          <span>{weather.risk.reason}</span>
+        </p>
+      )}
       <p>
         Weather Monitoring Dashboard{town && ` — ${town.name}, ${town.state}`}
       </p>
