@@ -23,6 +23,17 @@ body {
   margin-top: 36px;
 }
 
+.town-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.town-picker select {
+  font: inherit;
+  padding: 6px 10px;
+}
+
 .weather-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

@@ -1,35 +1,86 @@
 import { useEffect, useState } from "react";
-import { getWeather } from "./services/weather.service";
+import { getLocations, getWeather } from "./services/weather.service";
 import "./App.css";
 
+const TOWN_STORAGE_KEY = "cloudburst.selectedTown";
+
 function App() {
+  const [locations, setLocations] = useState([]);
+  const [townName, setTownName] = useState(
+    () => localStorage.getItem(TOWN_STORAGE_KEY) || "Dehradun",
+  );
   const [weather, setWeather] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [locationsError, setLocationsError] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const loadWeather = async () => {
-      try {
-        const data = await getWeather(30.3165, 78.0322);
-        setWeather(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const town =
+    locations.find((location) => location.name === townName) ||
+    locations.find((location) => location.name === "Dehradun") ||
+    locations[0];
+  const { latitude, longitude } = town || {};
+  const loading = !locationsError && !error && !weather;
 
-    loadWeather();
+  useEffect(() => {
+    const controller = new AbortController();
+
+    getLocations(controller.signal).then(setLocations).catch((err) => {
+      if (!controller.signal.aborted) {
+        setLocationsError(err.message);
+      }
+    });
+
+    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (latitude === undefined || longitude === undefined) return;
+
+    const controller = new AbortController();
+
+    getWeather(latitude, longitude, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setWeather(data);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) setError(err.message);
+      });
+
+    return () => controller.abort();
+  }, [latitude, longitude]);
+
+  const changeTown = (event) => {
+    const name = event.target.value;
+    setTownName(name);
+    localStorage.setItem(TOWN_STORAGE_KEY, name);
+    setWeather(null);
+    setError("");
+  };
 
   return (
     <div className="dashboard">
       <h1>Cloudburst Prediction System</h1>
-      <p>Weather Monitoring Dashboard — Dehradun, Uttarakhand</p>
+      <p>
+        Weather Monitoring Dashboard{town && ` — ${town.name}, ${town.state}`}
+      </p>
 
-      {loading && <p>Loading weather data...</p>}
+      {town && (
+        <label className="town-picker">
+          Himalayan town
+          <select value={town.name} onChange={changeTown}>
+            {locations.map((location) => (
+              <option key={location.name} value={location.name}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
-      {error && <p className="error">{error}</p>}
+      {loading && <p role="status">{town ? "Loading weather data..." : "Loading towns..."}</p>}
+
+      {(locationsError || error) && (
+        <p className="error" role="alert">{locationsError || error}</p>
+      )}
 
       {weather && (
         <>
