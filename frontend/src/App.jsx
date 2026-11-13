@@ -1,35 +1,105 @@
 import { useEffect, useState } from "react";
-import { getWeather } from "./services/weather.service";
+import { getLocations, getWeather } from "./services/weather.service";
 import "./App.css";
 
+const TOWN_STORAGE_KEY = "cloudburst.selectedTown";
+
+function formatPeakTime(peakTime, currentTime) {
+  const [date, time] = peakTime.split("T");
+  return `${time} IST${date === currentTime.slice(0, 10) ? "" : ` (${date})`}`;
+}
+
 function App() {
+  const [locations, setLocations] = useState([]);
+  const [townName, setTownName] = useState(
+    () => localStorage.getItem(TOWN_STORAGE_KEY) || "Dehradun",
+  );
   const [weather, setWeather] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [locationsError, setLocationsError] = useState("");
   const [error, setError] = useState("");
+  const [refreshCount, setRefreshCount] = useState(0);
+
+  const town =
+    locations.find((location) => location.name === townName) ||
+    locations.find((location) => location.name === "Dehradun") ||
+    locations[0];
+  const { latitude, longitude } = town || {};
+  const loading = !locationsError && !error && !weather;
+  const summary = weather?.summary;
 
   useEffect(() => {
-    const loadWeather = async () => {
-      try {
-        const data = await getWeather(30.3165, 78.0322);
-        setWeather(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+    const controller = new AbortController();
 
-    loadWeather();
+    getLocations(controller.signal).then(setLocations).catch((err) => {
+      if (!controller.signal.aborted) {
+        setLocationsError(err.message);
+      }
+    });
+
+    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (latitude === undefined || longitude === undefined) return;
+
+    const controller = new AbortController();
+
+    getWeather(latitude, longitude, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setWeather(data);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) setError(err.message);
+      });
+
+    return () => controller.abort();
+  }, [latitude, longitude, refreshCount]);
+
+  const refreshWeather = () => {
+    setWeather(null);
+    setError("");
+    setRefreshCount((count) => count + 1);
+  };
+
+  const changeTown = (event) => {
+    const name = event.target.value;
+    setTownName(name);
+    localStorage.setItem(TOWN_STORAGE_KEY, name);
+    setWeather(null);
+    setError("");
+  };
 
   return (
     <div className="dashboard">
       <h1>Cloudburst Prediction System</h1>
-      <p>Weather Monitoring Dashboard — Dehradun, Uttarakhand</p>
+      {weather?.risk && (
+        <p className={`risk risk--${weather.risk.level.toLowerCase()}`}>
+          <strong>Cloudburst risk: {weather.risk.level}</strong>
+          <span>{weather.risk.reason}</span>
+        </p>
+      )}
+      <p>
+        Weather Monitoring Dashboard{town && ` — ${town.name}, ${town.state}`}
+      </p>
 
-      {loading && <p>Loading weather data...</p>}
+      {town && (
+        <label className="town-picker">
+          Himalayan town
+          <select value={town.name} onChange={changeTown}>
+            {locations.map((location) => (
+              <option key={location.name} value={location.name}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
-      {error && <p className="error">{error}</p>}
+      {loading && <p role="status">{town ? "Loading weather data..." : "Loading towns..."}</p>}
+
+      {(locationsError || error) && (
+        <p className="error" role="alert">{locationsError || error}</p>
+      )}
 
       {weather && (
         <>
@@ -67,10 +137,26 @@ function App() {
             </div>
           </div>
 
+          {summary && (
+            <p>
+              {summary.peakTime && summary.peakPrecipitationMm > 0
+                ? `Heaviest rain: ${summary.peakPrecipitationMm} mm at ${formatPeakTime(summary.peakTime, weather.current.time)}`
+                : summary.peakPrecipitationMm === 0
+                  ? "No precipitation in the remaining forecast."
+                  : "Peak rainfall forecast unavailable."}
+            </p>
+          )}
+
           <p className="updated">
             Weather data time: {weather.current.time} (IST)
           </p>
         </>
+      )}
+
+      {town && (
+        <button className="refresh-button" type="button" onClick={refreshWeather} disabled={loading}>
+          Refresh
+        </button>
       )}
 
       <p className="disclaimer">
