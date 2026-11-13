@@ -4,6 +4,11 @@ import "./App.css";
 
 const TOWN_STORAGE_KEY = "cloudburst.selectedTown";
 
+function formatPeakTime(peakTime, currentTime) {
+  const [date, time] = peakTime.split("T");
+  return `${time} IST${date === currentTime.slice(0, 10) ? "" : ` (${date})`}`;
+}
+
 function App() {
   const [locations, setLocations] = useState([]);
   const [townName, setTownName] = useState(
@@ -12,6 +17,7 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [locationsError, setLocationsError] = useState("");
   const [error, setError] = useState("");
+  const [refreshCount, setRefreshCount] = useState(0);
 
   const town =
     locations.find((location) => location.name === townName) ||
@@ -19,6 +25,7 @@ function App() {
     locations[0];
   const { latitude, longitude } = town || {};
   const loading = !locationsError && !error && !weather;
+  const summary = weather?.summary;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -46,7 +53,13 @@ function App() {
       });
 
     return () => controller.abort();
-  }, [latitude, longitude]);
+  }, [latitude, longitude, refreshCount]);
+
+  const refreshWeather = () => {
+    setWeather(null);
+    setError("");
+    setRefreshCount((count) => count + 1);
+  };
 
   const changeTown = (event) => {
     const name = event.target.value;
@@ -124,10 +137,26 @@ function App() {
             </div>
           </div>
 
+          {summary && (
+            <p>
+              {summary.peakTime && summary.peakPrecipitationMm > 0
+                ? `Heaviest rain: ${summary.peakPrecipitationMm} mm at ${formatPeakTime(summary.peakTime, weather.current.time)}`
+                : summary.peakPrecipitationMm === 0
+                  ? "No precipitation in the remaining forecast."
+                  : "Peak rainfall forecast unavailable."}
+            </p>
+          )}
+
           <p className="updated">
             Weather data time: {weather.current.time} (IST)
           </p>
         </>
+      )}
+
+      {town && (
+        <button className="refresh-button" type="button" onClick={refreshWeather} disabled={loading}>
+          Refresh
+        </button>
       )}
 
       <p className="disclaimer">
