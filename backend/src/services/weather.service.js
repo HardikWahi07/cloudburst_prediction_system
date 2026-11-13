@@ -21,6 +21,34 @@ const getRisk = (current, hourly) => {
   };
 };
 
+const getForecastSummary = (current, hourly) => {
+  const summary = { peakPrecipitationMm: null, peakTime: null, maxProbability: null };
+
+  hourly.time.forEach((time, index) => {
+    if (time <= current.time) return;
+
+    const precipitation = hourly.precipitation[index];
+    const probability = hourly.precipitationProbability[index];
+
+    if (
+      Number.isFinite(precipitation) &&
+      (summary.peakPrecipitationMm === null || precipitation > summary.peakPrecipitationMm)
+    ) {
+      summary.peakPrecipitationMm = precipitation;
+      summary.peakTime = time;
+    }
+
+    if (
+      Number.isFinite(probability) &&
+      (summary.maxProbability === null || probability > summary.maxProbability)
+    ) {
+      summary.maxProbability = probability;
+    }
+  });
+
+  return summary;
+};
+
 export const getWeatherData = async (latitude, longitude) => {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
 
@@ -69,5 +97,9 @@ export const getWeatherData = async (latitude, longitude) => {
     },
   };
 
-  return { ...weather, risk: getRisk(weather.current, weather.hourly) };
+  return {
+    ...weather,
+    risk: getRisk(weather.current, weather.hourly),
+    summary: getForecastSummary(weather.current, weather.hourly),
+  };
 };
