@@ -1,8 +1,11 @@
-import { LayoutDashboard, RefreshCw, AlertCircle, Mountain } from 'lucide-react';
+import { LayoutDashboard, RefreshCw, AlertCircle, Mountain, Map as MapIcon, BarChart3, ExternalLink } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { useWeather } from '../hooks/useWeather.js';
 import WeatherGrid from '../components/weather/WeatherGrid.jsx';
 import RiskBadge from '../components/weather/RiskBadge.jsx';
 import HourlyForecast from '../components/HourlyForecast.jsx';
+import ForecastTrendsChart from '../components/charts/ForecastTrendsChart.jsx';
+import HimalayanMap from '../components/maps/HimalayanMap.jsx';
 import LoadingSkeleton from '../components/common/LoadingSkeleton.jsx';
 import ErrorFallback from '../components/common/ErrorFallback.jsx';
 
@@ -60,12 +63,12 @@ export default function Dashboard() {
           disabled={pending}
           title="Refresh current meteorological readings"
         >
-          <RefreshCw size={16} className={pending ? 'animate-spin' : ''} style={{ animation: pending ? 'spin 1s linear infinite' : 'none' }} />
+          <RefreshCw size={16} style={{ animation: pending ? 'spin 1s linear infinite' : 'none' }} />
           <span>{pending ? 'Updating...' : 'Refresh'}</span>
         </button>
       </div>
 
-      {/* Non-blocking error banner if last reading is retained */}
+      {/* Non-blocking error banner */}
       {error && weather && (
         <div
           style={{
@@ -89,7 +92,7 @@ export default function Dashboard() {
       {/* Initial loading state */}
       {loading && <LoadingSkeleton count={6} />}
 
-      {/* Hard error state if no data available */}
+      {/* Error state */}
       {error && !weather && (
         <ErrorFallback
           title="Weather API Unavailable"
@@ -104,9 +107,9 @@ export default function Dashboard() {
           {/* Cloudburst Risk Assessment Badge */}
           <RiskBadge risk={weather.risk} />
 
-          {/* Section: Current Weather KPI Cards */}
+          {/* KPI Cards Grid */}
           <div className="section-header">
-            <h2 className="section-title">Current Meteorological Readings</h2>
+            <h2 className="section-title">Current Weather Conditions</h2>
             {weather.current?.time && (
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                 Observed at {weather.current.time.slice(11, 16)} IST
@@ -115,6 +118,39 @@ export default function Dashboard() {
           </div>
 
           <WeatherGrid current={weather.current} summary={summary} />
+
+          {/* Section: Forecast Trends Chart (Phase 5) */}
+          <div style={{ marginTop: 'var(--space-8)' }}>
+            <div className="section-header">
+              <h2 className="section-title">
+                <BarChart3 size={20} />
+                Hourly Forecast Trends
+              </h2>
+              <NavLink to="/analytics" className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>Deep Analytics</span>
+                <ExternalLink size={12} />
+              </NavLink>
+            </div>
+            <ForecastTrendsChart
+              hourly={weather.hourly}
+              currentTime={weather.current?.time}
+            />
+          </div>
+
+          {/* Section: Interactive Himalayan Region Map Preview (Phase 4) */}
+          <div style={{ marginTop: 'var(--space-8)' }}>
+            <div className="section-header">
+              <h2 className="section-title">
+                <MapIcon size={20} />
+                Himalayan Region Map Preview
+              </h2>
+              <NavLink to="/map" className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>Full Map View</span>
+                <ExternalLink size={12} />
+              </NavLink>
+            </div>
+            <HimalayanMap height="420px" />
+          </div>
 
           {/* Forecast Summary Card */}
           {summary && (

@@ -5,6 +5,8 @@ import { BrowserRouter } from 'react-router-dom';
 import './styles/index.css';
 import './styles/layout.css';
 import './styles/components.css';
+import './styles/map.css';
+import './styles/charts.css';
 import './styles/responsive.css';
 
 import { ThemeProvider } from './context/ThemeContext.jsx';
