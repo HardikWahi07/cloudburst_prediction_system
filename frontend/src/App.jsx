@@ -26,7 +26,8 @@ function formatPeakTime(peakTime, currentTime) {
 }
 
 function App() {
-  const [locations, setLocations] = useState([]);
+  const [locations, setLocations] = useState(null);
+  const [locationsAttempt, setLocationsAttempt] = useState(0);
   const [townName, setTownName] = useState(readSavedTown);
   const [weather, setWeather] = useState(null);
   const [locationsError, setLocationsError] = useState("");
@@ -34,24 +35,26 @@ function App() {
   const [refreshCount, setRefreshCount] = useState(0);
 
   const town =
-    locations.find((location) => location.name === townName) ||
-    locations.find((location) => location.name === "Dehradun") ||
-    locations[0];
+    locations?.find((location) => location.name === townName) ||
+    locations?.find((location) => location.name === "Dehradun") ||
+    locations?.[0];
   const { latitude, longitude } = town || {};
-  const loading = !locationsError && !error && !weather;
+  const loading = !locationsError && !error && (locations === null || (town && !weather));
   const summary = weather?.summary;
 
   useEffect(() => {
     const controller = new AbortController();
 
-    getLocations(controller.signal).then(setLocations).catch((err) => {
-      if (!controller.signal.aborted) {
-        setLocationsError(err.message);
-      }
-    });
+    getLocations(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setLocations(data);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) setLocationsError(err.message);
+      });
 
     return () => controller.abort();
-  }, []);
+  }, [locationsAttempt]);
 
   useEffect(() => {
     if (latitude === undefined || longitude === undefined) return;
@@ -68,6 +71,11 @@ function App() {
 
     return () => controller.abort();
   }, [latitude, longitude, refreshCount]);
+
+  const retryLocations = () => {
+    setLocationsError("");
+    setLocationsAttempt((attempt) => attempt + 1);
+  };
 
   const refreshWeather = () => {
     setWeather(null);
@@ -111,9 +119,16 @@ function App() {
 
       {loading && <p role="status">{town ? "Loading weather data..." : "Loading towns..."}</p>}
 
-      {(locationsError || error) && (
-        <p className="error" role="alert">{locationsError || error}</p>
+      {locationsError && (
+        <div>
+          <p className="error" role="alert">{locationsError}</p>
+          <button className="refresh-button" type="button" onClick={retryLocations}>
+            Retry towns
+          </button>
+        </div>
       )}
+      {locations?.length === 0 && <p role="status">No Himalayan towns are available.</p>}
+      {error && <p className="error" role="alert">{error}</p>}
 
       {weather && (
         <>
