@@ -25,6 +25,15 @@ function formatPeakTime(peakTime, currentTime) {
   return `${time} IST${date === currentTime.slice(0, 10) ? "" : ` (${date})`}`;
 }
 
+const WEATHER_METRICS = [
+  { key: "temperature", label: "Temperature", unit: " °C" },
+  { key: "humidity", label: "Humidity", unit: "%" },
+  { key: "precipitation", label: "Precipitation", unit: " mm" },
+  { key: "windSpeed", label: "Wind Speed", unit: " km/h" },
+  { key: "pressure", label: "Atmospheric Pressure", unit: " hPa" },
+  { key: "cloudCover", label: "Cloud Cover", unit: "%" },
+];
+
 function App() {
   const [locations, setLocations] = useState(null);
   const [locationsAttempt, setLocationsAttempt] = useState(0);
@@ -144,35 +153,15 @@ function App() {
           <h2>Current Weather</h2>
 
           <div className="weather-grid">
-            <div className="weather-card">
-              <h3>Temperature</h3>
-              <p>{weather.current.temperature} °C</p>
-            </div>
-
-            <div className="weather-card">
-              <h3>Humidity</h3>
-              <p>{weather.current.humidity}%</p>
-            </div>
-
-            <div className="weather-card">
-              <h3>Precipitation</h3>
-              <p>{weather.current.precipitation} mm</p>
-            </div>
-
-            <div className="weather-card">
-              <h3>Wind Speed</h3>
-              <p>{weather.current.windSpeed} km/h</p>
-            </div>
-
-            <div className="weather-card">
-              <h3>Atmospheric Pressure</h3>
-              <p>{weather.current.pressure} hPa</p>
-            </div>
-
-            <div className="weather-card">
-              <h3>Cloud Cover</h3>
-              <p>{weather.current.cloudCover}%</p>
-            </div>
+            {WEATHER_METRICS.map(({ key, label, unit }) => {
+              const value = weather.current[key];
+              return (
+                <div key={key} className="weather-card">
+                  <h3>{label}</h3>
+                  <p>{Number.isFinite(value) ? `${value}${unit}` : "Unavailable"}</p>
+                </div>
+              );
+            })}
           </div>
 
           {summary && (
