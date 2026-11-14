@@ -377,3 +377,10 @@ export const searchLocations = async (req, res) => {
     results,
   });
 };
+
+export const getRiskMapStations = (_req, res) => {
+  res.json({
+    updatedAt: new Date().toISOString(),
+    stations: priorityStations,
+  });
+};

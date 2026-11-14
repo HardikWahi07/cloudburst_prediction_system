@@ -15,6 +15,7 @@ import {
 import HourlyForecast from "./components/HourlyForecast";
 import MeteorologicalChart from "./components/MeteorologicalChart";
 import ParameterAnalyzer from "./components/ParameterAnalyzer";
+import WorldRiskMap from "./components/WorldRiskMap";
 
 const CITY_STORAGE_KEY = "cloudburst.selectedCity";
 const PAGE_SIZE = 50;
@@ -423,6 +424,13 @@ function App() {
               Telemetry
             </a>
             <a
+              href="#world-map"
+              className="hover:text-red-700 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 text-red-600 font-semibold"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+              World Risk Map
+            </a>
+            <a
               href="#forecast"
               className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0"
             >
@@ -773,6 +781,12 @@ function App() {
             </div>
           )}
         </section>
+
+        <WorldRiskMap
+          activeCity={activeLocation}
+          onSelectCity={selectCity}
+          liveWeather={weather}
+        />
 
         {weather && (
           <section id="forecast" className="pt-8" aria-label="Forecast patterns">
