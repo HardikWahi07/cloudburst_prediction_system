@@ -852,7 +852,52 @@ const CLOUDBURST_CORRIDORS = [
   },
 ];
 
-export default function WorldRiskMap({ activeCity, onSelectCity, liveWeather }) {
+// 100% Free, keyless tile providers that never require an API key or show watermarks
+export const KEYLESS_TILE_PROVIDERS = {
+  "esri-dark": {
+    name: "Dark Radar (Esri · Keyless)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      attribution:
+        '&copy; <a href="https://www.esri.com/">Esri</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 16,
+    },
+  },
+  osm: {
+    name: "Standard Light (OpenStreetMap · Keyless)",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    },
+  },
+  topo: {
+    name: "Mountain Topography (Esri · Keyless)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      attribution:
+        'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, USGS, NOAA',
+      maxZoom: 18,
+    },
+  },
+  satellite: {
+    name: "Satellite Topo (Esri · Keyless)",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      attribution:
+        'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid',
+      maxZoom: 18,
+    },
+  },
+};
+
+export default function WorldRiskMap({
+  activeCity,
+  onSelectCity,
+  liveWeather,
+  theme = "dark",
+}) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersGroupRef = useRef(null);
@@ -862,11 +907,16 @@ export default function WorldRiskMap({ activeCity, onSelectCity, liveWeather }) 
   const [riskFilter, setRiskFilter] = useState("ALL"); // ALL, High, Watch, Low
   const [continentFilter, setContinentFilter] = useState("ALL");
   const [showCorridors, setShowCorridors] = useState(true);
-  const [mapStyle, setMapStyle] = useState("dark"); // dark, voyager, osm
+  const [mapStyle, setMapStyle] = useState(theme === "dark" ? "esri-dark" : "osm");
   const [selectedStation, setSelectedStation] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [leafletReady, setLeafletReady] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Sync mapStyle with theme prop
+  useEffect(() => {
+    setMapStyle(theme === "dark" ? "esri-dark" : "osm");
+  }, [theme]);
 
   // Statistics
   const highRiskCount = CLOUDBURST_GLOBAL_STATIONS.filter((s) => s.riskLevel === "High").length;
@@ -928,20 +978,11 @@ export default function WorldRiskMap({ activeCity, onSelectCity, liveWeather }) 
 
     mapInstanceRef.current = map;
 
-    // Tile layers
-    const tileUrls = {
-      dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      voyager: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-      osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    };
+    // Keyless tile layer
+    const provider =
+      KEYLESS_TILE_PROVIDERS[mapStyle] || KEYLESS_TILE_PROVIDERS["esri-dark"];
 
-    const tileLayer = L.tileLayer(tileUrls[mapStyle] || tileUrls.dark, {
-      attribution:
-        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      maxZoom: 19,
-      subdomains: "abcd",
-    }).addTo(map);
-
+    const tileLayer = L.tileLayer(provider.url, provider.options).addTo(map);
     map._activeTileLayer = tileLayer;
 
     // Feature groups
@@ -960,23 +1001,14 @@ export default function WorldRiskMap({ activeCity, onSelectCity, liveWeather }) 
     const L = window.L;
     const map = mapInstanceRef.current;
 
-    const tileUrls = {
-      dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      voyager: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-      osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    };
+    const provider =
+      KEYLESS_TILE_PROVIDERS[mapStyle] || KEYLESS_TILE_PROVIDERS["esri-dark"];
 
     if (map._activeTileLayer) {
       map.removeLayer(map._activeTileLayer);
     }
 
-    const newTile = L.tileLayer(tileUrls[mapStyle] || tileUrls.dark, {
-      attribution:
-        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      maxZoom: 19,
-      subdomains: "abcd",
-    }).addTo(map);
-
+    const newTile = L.tileLayer(provider.url, provider.options).addTo(map);
     map._activeTileLayer = newTile;
   }, [mapStyle]);
 
@@ -1424,12 +1456,13 @@ export default function WorldRiskMap({ activeCity, onSelectCity, liveWeather }) 
           <select
             value={mapStyle}
             onChange={(e) => setMapStyle(e.target.value)}
-            className="px-2 py-1 rounded bg-white border border-slate-300 text-slate-700 text-xs font-medium cursor-pointer"
+            className="px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium cursor-pointer"
             aria-label="Map Tile Style"
           >
-            <option value="dark">Carto Dark Radar</option>
-            <option value="voyager">Voyager Terrain</option>
-            <option value="osm">OpenStreetMap</option>
+            <option value="esri-dark">Dark Radar (Esri · Keyless)</option>
+            <option value="osm">Standard Light (OSM · Keyless)</option>
+            <option value="topo">Mountain Topo (Keyless)</option>
+            <option value="satellite">Satellite Imagery (Keyless)</option>
           </select>
 
           <button

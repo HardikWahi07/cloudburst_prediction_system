@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  Moon,
   OctagonAlert,
   RefreshCw,
   Search,
+  Sun,
 } from "lucide-react";
 import {
   getCountries,
@@ -18,7 +20,21 @@ import ParameterAnalyzer from "./components/ParameterAnalyzer";
 import WorldRiskMap from "./components/WorldRiskMap";
 
 const CITY_STORAGE_KEY = "cloudburst.selectedCity";
+const THEME_STORAGE_KEY = "cloudburst.theme";
 const PAGE_SIZE = 50;
+
+function readSavedTheme() {
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (raw === "dark" || raw === "light") return raw;
+    if (typeof window !== "undefined" && window.matchMedia) {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return "dark";
+  } catch {
+    return "dark";
+  }
+}
 
 function readSavedCity() {
   try {
@@ -83,6 +99,7 @@ function getRiskAppearance(level) {
 }
 
 function App() {
+  const [theme, setTheme] = useState(readSavedTheme);
   const [priorityStations, setPriorityStations] = useState(null);
   const [locationsAttempt, setLocationsAttempt] = useState(0);
   const [selectedCity, setSelectedCity] = useState(readSavedCity);
@@ -91,6 +108,20 @@ function App() {
   const [error, setError] = useState("");
   const [refreshCount, setRefreshCount] = useState(0);
   const [pending, setPending] = useState(true);
+
+  // Sync theme with document root class and storage
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // storage unavailable
+    }
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
 
   // Global quick search combobox state
   const [quickQuery, setQuickQuery] = useState("");
@@ -450,7 +481,28 @@ function App() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border transition-colors cursor-pointer dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700 bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
+              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} theme`}
+              aria-label={`Switch to ${theme === "dark" ? "Light" : "Dark"} theme`}
+            >
+              {theme === "dark" ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
+                  <span className="hidden sm:inline">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-slate-600" aria-hidden="true" />
+                  <span className="hidden sm:inline">Dark</span>
+                </>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={refreshWeather}
@@ -786,6 +838,7 @@ function App() {
           activeCity={activeLocation}
           onSelectCity={selectCity}
           liveWeather={weather}
+          theme={theme}
         />
 
         {weather && (
