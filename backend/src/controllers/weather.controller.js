@@ -1,4 +1,7 @@
-import { getWeatherData } from "../services/weather.service.js";
+import {
+  getBatchWeatherData,
+  getWeatherData,
+} from "../services/weather.service.js";
 
 export const getWeather = async (req, res) => {
   try {
@@ -40,6 +43,44 @@ export const getWeather = async (req, res) => {
     return res.status(502).json({
       success: false,
       message: "Failed to fetch weather data",
+    });
+  }
+};
+
+export const getBatchWeather = async (req, res) => {
+  try {
+    let locations = [];
+    if (req.method === "POST" && Array.isArray(req.body?.locations)) {
+      locations = req.body.locations;
+    } else if (typeof req.query.coords === "string") {
+      locations = req.query.coords
+        .split(";")
+        .map((pair, idx) => {
+          const [lat, lon] = pair.split(",").map(Number);
+          return { id: `loc-${idx}`, latitude: lat, longitude: lon };
+        })
+        .filter((l) => Number.isFinite(l.latitude) && Number.isFinite(l.longitude));
+    }
+
+    if (locations.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Locations array or coords query required",
+      });
+    }
+
+    const results = await getBatchWeatherData(locations);
+
+    return res.status(200).json({
+      success: true,
+      count: results.length,
+      results,
+    });
+  } catch (error) {
+    console.error("Batch Weather Controller Error:", error.message);
+    return res.status(502).json({
+      success: false,
+      message: "Failed to fetch batch weather data",
     });
   }
 };

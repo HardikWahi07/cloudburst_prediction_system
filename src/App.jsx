@@ -836,6 +836,8 @@ function App() {
 
         <WorldRiskMap
           activeCity={activeLocation}
+          priorityStations={priorityStations}
+          directoryCities={worldData.results}
           onSelectCity={selectCity}
           liveWeather={weather}
           theme={theme}

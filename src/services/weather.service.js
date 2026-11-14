@@ -46,3 +46,22 @@ export const getWeather = async (latitude, longitude, signal) => {
 
   return requestJson(`/api/weather?${params}`, signal, "Failed to fetch weather data");
 };
+
+export const getBatchWeather = async (locations, signal) => {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  try {
+    const response = await fetch(`${API_URL}/api/weather/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locations }),
+      signal: requestSignal,
+    });
+    if (!response.ok) throw new Error("Failed to fetch batch weather data");
+    return await response.json();
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new Error("Failed to fetch batch weather data", { cause: error });
+  }
+};

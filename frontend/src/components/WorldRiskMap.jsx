@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Compass,
@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Zap,
 } from "lucide-react";
+import { getBatchWeather } from "../services/weather.service";
 
 // Global database of major cloudburst-vulnerable mountainous regions, hydropower nodes,
 // and steep orographic catchment basins across the world.
@@ -927,6 +928,8 @@ export function isMatchingStation(st, activeCity) {
 
 export default function WorldRiskMap({
   activeCity,
+  priorityStations,
+  directoryCities,
   onSelectCity,
   liveWeather,
   theme = "dark",
@@ -952,60 +955,164 @@ export default function WorldRiskMap({
     setMapStyle(theme === "dark" ? "esri-dark" : "osm");
   }, [theme]);
 
-  // Fetch real-time live telemetry for all stations across the world
+  // Combine all candidate cities:
+  // 1. Monitored global mountain / hydro stations
+  // 2. All Priority Himalayan stations (from /api/locations)
+  // 3. World Cities directory results (browsed or filtered by user)
+  const allCandidateCities = useMemo(() => {
+    const list = [...CLOUDBURST_GLOBAL_STATIONS];
+    const seen = new Set(
+      list.map((s) => `${Number(s.latitude).toFixed(2)},${Number(s.longitude).toFixed(2)}`),
+    );
+
+    // Merge priority stations from /api/locations
+    (priorityStations || []).forEach((ps) => {
+      const key = `${Number(ps.latitude).toFixed(2)},${Number(ps.longitude).toFixed(2)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({
+          id: ps.id || `ps-${ps.name}`,
+          name: ps.name,
+          region: ps.state || "Himalayan Region",
+          country: ps.country || "India",
+          countryCode: ps.countryCode || "IN",
+          continent: "Asia",
+          basin: ps.basin || "Himalayan Basin",
+          elevationM: ps.elevationM || null,
+          latitude: ps.latitude,
+          longitude: ps.longitude,
+          riskLevel: "Low",
+          riskScore: 15,
+          rainfallRateMmH: 0,
+          capeJkg: 50,
+          hazardType: "Priority Hydro Corridor Station",
+          powerAsset: ps.powerAsset || "Hydropower Grid",
+          metAgency: ps.metAgency || "IMD Meteorological Centre",
+          advisory: "Standard generation schedules and routine monitoring.",
+        });
+      }
+    });
+
+    // Merge world directory cities (from search or country browser)
+    (directoryCities || []).slice(0, 35).forEach((dc) => {
+      const key = `${Number(dc.latitude).toFixed(2)},${Number(dc.longitude).toFixed(2)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({
+          id: dc.id || `dc-${dc.name}-${dc.latitude}`,
+          name: dc.name,
+          region: dc.state || dc.country || "World City",
+          country: dc.country || "Global",
+          countryCode: dc.countryCode || "",
+          continent: "Global",
+          basin: dc.basin || `${dc.country || "Global"} Catchment`,
+          elevationM: dc.elevationM || null,
+          latitude: dc.latitude,
+          longitude: dc.longitude,
+          riskLevel: "Low",
+          riskScore: 12,
+          rainfallRateMmH: 0,
+          capeJkg: 40,
+          hazardType: "Global Monitored City",
+          powerAsset: "Regional Grid",
+          metAgency: "National Meteorological Service",
+          advisory: "Standard meteorological bulletin logging.",
+        });
+      }
+    });
+
+    return list;
+  }, [priorityStations, directoryCities]);
+
+  // Fetch real-time live telemetry for all stations across the world via /api/weather/batch
   useEffect(() => {
     const controller = new AbortController();
 
     async function fetchLiveTelemetry() {
+      if (allCandidateCities.length === 0) return;
+
       try {
-        const lats = CLOUDBURST_GLOBAL_STATIONS.map((s) => s.latitude.toFixed(3)).join(",");
-        const lons = CLOUDBURST_GLOBAL_STATIONS.map((s) => s.longitude.toFixed(3)).join(",");
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=precipitation,rain,relative_humidity_2m,pressure_msl,temperature_2m&hourly=precipitation,cape,pressure_msl&forecast_days=1`;
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) return;
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : [data];
+        const payload = allCandidateCities.slice(0, 60).map((c) => ({
+          id: c.id,
+          name: c.name,
+          state: c.region,
+          country: c.country,
+          latitude: c.latitude,
+          longitude: c.longitude,
+        }));
 
-        const updates = {};
-        list.forEach((item, idx) => {
-          const st = CLOUDBURST_GLOBAL_STATIONS[idx];
-          if (!st || !item.current) return;
-          const currentRain = item.current.rain ?? item.current.precipitation ?? 0;
-          const humidity = item.current.relative_humidity_2m ?? 50;
-          const hourlyPrecip = item.hourly?.precipitation ?? [];
-          const hourlyCape = item.hourly?.cape ?? [];
-          const peakRain = hourlyPrecip.length ? Math.max(...hourlyPrecip.filter(Number.isFinite)) : 0;
-          const peakCape = hourlyCape.length ? Math.max(...hourlyCape.filter(Number.isFinite)) : 0;
+        const res = await getBatchWeather(payload, controller.signal);
+        if (Array.isArray(res?.results) && res.results.length > 0) {
+          const updates = {};
+          res.results.forEach((item) => {
+            if (!item?.risk) return;
+            updates[item.id] = {
+              score: item.risk.score,
+              level: item.risk.level,
+              imdTier: item.risk.imdTier,
+              powerAdvisory: item.risk.powerAdvisory?.action,
+              rain: item.current?.precipitation ?? 0,
+              cape: item.risk?.peakCape ?? 0,
+              humidity: item.current?.humidity ?? 50,
+              pressure: item.current?.pressure,
+              pressureDrop: item.risk?.pressureDrop3h,
+            };
+          });
+          setLiveStationData((prev) => ({ ...prev, ...updates }));
+          return;
+        }
+      } catch (err) {
+        // Fallback to direct client API if backend batch endpoint is unreachable
+        try {
+          const targets = allCandidateCities.slice(0, 50);
+          const lats = targets.map((s) => s.latitude.toFixed(3)).join(",");
+          const lons = targets.map((s) => s.longitude.toFixed(3)).join(",");
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=precipitation,rain,relative_humidity_2m,pressure_msl,temperature_2m&hourly=precipitation,cape,pressure_msl&forecast_days=1`;
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) return;
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : [data];
 
-          // Standard cloudburst multi-variable risk index (0-100)
-          const rainPoints = Math.min(25, currentRain * 3.5);
-          const forecastPoints = Math.min(40, peakRain * 2.5);
-          const humidityPoints = humidity >= 92 ? 12 : humidity >= 85 ? 8 : humidity >= 75 ? 4 : 0;
-          const capePoints = peakCape >= 1500 ? 10 : peakCape >= 800 ? 6 : peakCape >= 300 ? 2 : 0;
-          const score = Math.min(100, Math.round(rainPoints + forecastPoints + humidityPoints + capePoints));
-          const level = score >= 60 ? "High" : score >= 25 ? "Watch" : "Low";
+          const updates = {};
+          list.forEach((item, idx) => {
+            const st = targets[idx];
+            if (!st || !item.current) return;
+            const currentRain = item.current.rain ?? item.current.precipitation ?? 0;
+            const humidity = item.current.relative_humidity_2m ?? 50;
+            const hourlyPrecip = item.hourly?.precipitation ?? [];
+            const hourlyCape = item.hourly?.cape ?? [];
+            const peakRain = hourlyPrecip.length ? Math.max(...hourlyPrecip.filter(Number.isFinite)) : 0;
+            const peakCape = hourlyCape.length ? Math.max(...hourlyCape.filter(Number.isFinite)) : 0;
 
-          updates[st.id] = {
-            score,
-            level,
-            rain: currentRain,
-            peakRain,
-            cape: Math.round(peakCape),
-            humidity,
-          };
-        });
-        setLiveStationData(updates);
-      } catch {
-        // gracefully fall back to baseline
+            const rainPoints = Math.min(25, currentRain * 3.5);
+            const forecastPoints = Math.min(40, peakRain * 2.5);
+            const humidityPoints = humidity >= 92 ? 12 : humidity >= 85 ? 8 : humidity >= 75 ? 4 : 0;
+            const capePoints = peakCape >= 1500 ? 10 : peakCape >= 800 ? 6 : peakCape >= 300 ? 2 : 0;
+            const score = Math.min(100, Math.round(rainPoints + forecastPoints + humidityPoints + capePoints));
+            const level = score >= 60 ? "High" : score >= 25 ? "Watch" : "Low";
+
+            updates[st.id] = {
+              score,
+              level,
+              rain: currentRain,
+              peakRain,
+              cape: Math.round(peakCape),
+              humidity,
+            };
+          });
+          setLiveStationData((prev) => ({ ...prev, ...updates }));
+        } catch {
+          // gracefully fall back to baseline
+        }
       }
     }
 
     fetchLiveTelemetry();
     return () => controller.abort();
-  }, []);
+  }, [allCandidateCities]);
 
   // Compute live updated stations: active search city takes highest priority!
-  const stationsWithLiveData = CLOUDBURST_GLOBAL_STATIONS.map((st) => {
+  const stationsWithLiveData = allCandidateCities.map((st) => {
     const isDashboardActive = isMatchingStation(st, activeCity);
 
     // If active in dashboard and has live weather, live weather is 100% authoritative!
@@ -1056,8 +1163,9 @@ export default function WorldRiskMap({
 
     const currentAdvisory =
       activeAdvisory ||
+      liveStationData[st.id]?.powerAdvisory ||
       (currentLevel === "High"
-        ? "Red Alert: Severe cloudburst hazard."
+        ? "Red Alert: Severe cloudburst hazard detected."
         : currentLevel === "Watch"
         ? "Watch: Elevated moisture saturation."
         : "Normal: Standard generation schedules and routine 3-hour bulletin logging.");
@@ -1069,12 +1177,12 @@ export default function WorldRiskMap({
       riskLevel: currentLevel,
       rainfallRateMmH: currentRain,
       capeJkg: currentCape,
-      hazardType: activeHazard || st.hazardType,
+      hazardType: activeHazard || liveStationData[st.id]?.imdTier || st.hazardType,
       advisory: currentAdvisory,
     };
   });
 
-  // If activeCity is selected and not in predefined list, inject it dynamically
+  // If activeCity is selected and not in candidate list, inject it dynamically
   if (
     activeCity &&
     Number.isFinite(activeCity.latitude) &&
@@ -1088,6 +1196,23 @@ export default function WorldRiskMap({
       country: activeCity.country || activeCity.countryCode || "Global",
       countryCode: activeCity.countryCode || "",
       continent: "Global",
+      basin: activeCity.basin || "Regional Catchment",
+      elevationM: activeCity.elevationM || null,
+      latitude: activeCity.latitude,
+      longitude: activeCity.longitude,
+      riskLevel: liveWeather?.risk?.level || "Low",
+      riskScore: liveWeather?.risk?.score ?? 12,
+      rainfallRateMmH: liveWeather?.current?.precipitation ?? 0,
+      capeJkg: liveWeather?.risk?.peakCape ?? 50,
+      pressureDrop3h: liveWeather?.risk?.pressureDrop3h ?? 0.2,
+      hazardType: liveWeather?.risk?.imdTier || "Live Monitored Station",
+      powerAsset: activeCity.powerAsset || "Regional Power Grid",
+      metAgency: activeCity.metAgency || "National Meteorological Service",
+      advisory: liveWeather?.risk?.powerAdvisory?.action || "Live Monitored Telemetry",
+      isDashboardActive: true,
+      isDynamicActive: true,
+    });
+  }
       basin: activeCity.basin || "Regional Catchment",
       elevationM: activeCity.elevationM || null,
       latitude: activeCity.latitude,
@@ -1480,12 +1605,12 @@ export default function WorldRiskMap({
             <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-semibold font-mono animate-pulse">
               LIVE RADAR
             </span>
-            <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
-              Free OpenStreetMap · No API Key
+            <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium font-mono">
+              Live Synced: /api/weather ({stationsWithLiveData.length} Cities)
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Open-source planetary observatory (powered by OpenStreetMap &amp; Leaflet — zero API keys or tokens needed) identifying steep orographic flash flood zones,
+            Planetary observatory fetching live cloudburst telemetry through the /api/weather backend service (powered by OpenStreetMap &amp; Esri — zero API keys needed) identifying steep orographic flash flood zones,
             Himalayan cloudburst corridors, convective instability hotspots, and monitored hydro assets.
           </p>
         </div>

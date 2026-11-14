@@ -165,39 +165,14 @@ const getForecastSummary = (current, hourly) => {
   return summary;
 };
 
-export const getWeatherData = async (latitude, longitude) => {
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-
-  url.search = new URLSearchParams({
-    latitude: String(latitude),
-    longitude: String(longitude),
-    current:
-      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,rain,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m",
-    hourly:
-      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,precipitation_probability,pressure_msl,cloud_cover,wind_speed_10m,cape",
-    forecast_days: "2",
-    timezone: "auto",
-  }).toString();
-
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Weather API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  const { current, hourly } = data;
-  if (
-    typeof current?.time !== "string" ||
-    !Array.isArray(hourly?.time) ||
-    !Array.isArray(hourly.precipitation) ||
-    !Array.isArray(hourly.precipitation_probability)
-  ) {
+const formatSingleWeather = (data, fallbackLat, fallbackLon) => {
+  const { current, hourly } = data || {};
+  if (!current || !hourly || !Array.isArray(hourly.time)) {
     throw new Error("Weather API returned an incomplete forecast");
   }
+
+  const latitude = Number.isFinite(data.latitude) ? data.latitude : fallbackLat;
+  const longitude = Number.isFinite(data.longitude) ? data.longitude : fallbackLon;
 
   const dewPoint = Number.isFinite(current.dew_point_2m) ? current.dew_point_2m : null;
   const temperature = Number.isFinite(current.temperature_2m) ? current.temperature_2m : null;
@@ -232,10 +207,12 @@ export const getWeatherData = async (latitude, longitude) => {
     hourly: {
       time: hourly.time,
       temperature: Array.isArray(hourly.temperature_2m) ? hourly.temperature_2m : [],
-      precipitation: hourly.precipitation.map((value) => getMeasurement(value, 0)),
-      precipitationProbability: hourly.precipitation_probability.map(
-        (value) => getMeasurement(value, 0, 100),
-      ),
+      precipitation: Array.isArray(hourly.precipitation)
+        ? hourly.precipitation.map((value) => getMeasurement(value, 0))
+        : [],
+      precipitationProbability: Array.isArray(hourly.precipitation_probability)
+        ? hourly.precipitation_probability.map((value) => getMeasurement(value, 0, 100))
+        : [],
       humidity: Array.isArray(hourly.relative_humidity_2m) ? hourly.relative_humidity_2m : [],
       pressure: Array.isArray(hourly.pressure_msl) ? hourly.pressure_msl : [],
       windSpeed: Array.isArray(hourly.wind_speed_10m) ? hourly.wind_speed_10m : [],
@@ -250,4 +227,86 @@ export const getWeatherData = async (latitude, longitude) => {
     risk: getRisk(weather.current, weather.hourly),
     summary: getForecastSummary(weather.current, weather.hourly),
   };
+};
+
+export const getWeatherData = async (latitude, longitude) => {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+
+  url.search = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    current:
+      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,rain,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m",
+    hourly:
+      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,precipitation_probability,pressure_msl,cloud_cover,wind_speed_10m,cape",
+    forecast_days: "2",
+    timezone: "auto",
+  }).toString();
+
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Weather API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return formatSingleWeather(data, latitude, longitude);
+};
+
+export const getBatchWeatherData = async (locations) => {
+  if (!Array.isArray(locations) || locations.length === 0) return [];
+
+  const targets = locations.slice(0, 60);
+  const lats = targets.map((l) => Number(l.latitude).toFixed(4)).join(",");
+  const lons = targets.map((l) => Number(l.longitude).toFixed(4)).join(",");
+
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.search = new URLSearchParams({
+    latitude: lats,
+    longitude: lons,
+    current:
+      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,rain,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m",
+    hourly:
+      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,precipitation_probability,pressure_msl,cloud_cover,wind_speed_10m,cape",
+    forecast_days: "2",
+    timezone: "auto",
+  }).toString();
+
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Weather API batch error: ${response.status}`);
+  }
+
+  const raw = await response.json();
+  const dataList = Array.isArray(raw) ? raw : [raw];
+
+  return targets
+    .map((loc, idx) => {
+      const item = dataList[idx];
+      if (!item) return null;
+      try {
+        const weather = formatSingleWeather(item, loc.latitude, loc.longitude);
+        return {
+          id: loc.id || `city-${idx}`,
+          name: loc.name,
+          state: loc.state,
+          country: loc.country,
+          countryCode: loc.countryCode,
+          elevationM: loc.elevationM,
+          basin: loc.basin,
+          powerAsset: loc.powerAsset,
+          metAgency: loc.metAgency,
+          population: loc.population,
+          ...weather,
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
 };
