@@ -4,6 +4,11 @@ import HourlyForecast from "./components/HourlyForecast";
 import "./App.css";
 
 const TOWN_STORAGE_KEY = "cloudburst.selectedTown";
+const IST_DATE = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Asia/Kolkata",
+});
 
 function readSavedTown() {
   try {
@@ -23,7 +28,8 @@ function saveTown(name) {
 
 function formatPeakTime(peakTime, currentTime) {
   const [date, time] = peakTime.split("T");
-  return `${time} IST${date === currentTime.slice(0, 10) ? "" : ` (${date})`}`;
+  const day = date === currentTime.slice(0, 10) ? "" : ` (${IST_DATE.format(new Date(`${peakTime}+05:30`))})`;
+  return `${time} IST${day}`;
 }
 
 const WEATHER_METRICS = [
@@ -184,7 +190,11 @@ function App() {
           <HourlyForecast hourly={weather.hourly} currentTime={weather.current.time} />
 
           <p className="updated">
-            Weather data time: {weather.current.time} (IST)
+            Weather observed{" "}
+            <time dateTime={`${weather.current.time}+05:30`}>
+              {IST_DATE.format(new Date(`${weather.current.time}+05:30`))} at{" "}
+              {weather.current.time.slice(11, 16)} IST
+            </time>
           </p>
         </>
       )}
