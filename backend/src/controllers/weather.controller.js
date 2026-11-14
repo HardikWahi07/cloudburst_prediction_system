@@ -11,8 +11,8 @@ export const getWeather = async (req, res) => {
       });
     }
 
-    const latitude = Number(lat);
-    const longitude = Number(lon);
+    const latitude = typeof lat === "string" && lat.trim() ? Number(lat) : NaN;
+    const longitude = typeof lon === "string" && lon.trim() ? Number(lon) : NaN;
 
     if (
       !Number.isFinite(latitude) ||
