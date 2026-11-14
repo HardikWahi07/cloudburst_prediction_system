@@ -1213,23 +1213,6 @@ export default function WorldRiskMap({
       isDynamicActive: true,
     });
   }
-      basin: activeCity.basin || "Regional Catchment",
-      elevationM: activeCity.elevationM || null,
-      latitude: activeCity.latitude,
-      longitude: activeCity.longitude,
-      riskLevel: liveWeather?.risk?.level || "Low",
-      riskScore: liveWeather?.risk?.score ?? 12,
-      rainfallRateMmH: liveWeather?.current?.precipitation ?? 0,
-      capeJkg: liveWeather?.risk?.peakCape ?? 50,
-      pressureDrop3h: liveWeather?.risk?.pressureDrop3h ?? 0.2,
-      hazardType: liveWeather?.risk?.imdTier || "Live Monitored Station",
-      powerAsset: activeCity.powerAsset || "Regional Power Grid",
-      metAgency: activeCity.metAgency || "National Meteorological Service",
-      advisory: liveWeather?.risk?.powerAdvisory?.action || "Live Monitored Telemetry",
-      isDashboardActive: true,
-      isDynamicActive: true,
-    });
-  }
 
   // Statistics
   const highRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "High").length;
