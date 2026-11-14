@@ -39,7 +39,8 @@ function App() {
     locations?.find((location) => location.name === "Dehradun") ||
     locations?.[0];
   const { latitude, longitude } = town || {};
-  const loading = !locationsError && !error && (locations === null || (town && !weather));
+  const [pending, setPending] = useState(true);
+  const loading = !locationsError && !error && (locations === null || (town && pending));
   const summary = weather?.summary;
 
   useEffect(() => {
@@ -67,6 +68,9 @@ function App() {
       })
       .catch((err) => {
         if (!controller.signal.aborted) setError(err.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPending(false);
       });
 
     return () => controller.abort();
@@ -78,7 +82,7 @@ function App() {
   };
 
   const refreshWeather = () => {
-    setWeather(null);
+    setPending(true);
     setError("");
     setRefreshCount((count) => count + 1);
   };
@@ -87,6 +91,7 @@ function App() {
     const name = event.target.value;
     setTownName(name);
     saveTown(name);
+    setPending(true);
     setWeather(null);
     setError("");
   };
@@ -117,7 +122,7 @@ function App() {
         </label>
       )}
 
-      {loading && <p role="status">{town ? "Loading weather data..." : "Loading towns..."}</p>}
+      {loading && <p role="status">{weather ? "Refreshing weather..." : town ? "Loading weather data..." : "Loading towns..."}</p>}
 
       {locationsError && (
         <div>
@@ -128,7 +133,11 @@ function App() {
         </div>
       )}
       {locations?.length === 0 && <p role="status">No Himalayan towns are available.</p>}
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}{weather && " Showing the last successful weather reading."}
+        </p>
+      )}
 
       {weather && (
         <>
