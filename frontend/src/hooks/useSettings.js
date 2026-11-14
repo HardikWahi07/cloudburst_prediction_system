@@ -1,0 +1,10 @@
+import { useContext } from 'react';
+import { SettingsContext } from '../context/settings-context.js';
+
+export function useSettings() {
+  const ctx = useContext(SettingsContext);
+  if (ctx === undefined) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return ctx;
+}
