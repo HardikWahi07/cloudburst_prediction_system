@@ -209,7 +209,7 @@ export const CLOUDBURST_GLOBAL_STATIONS = [
   },
   {
     id: "ihr-gangtok",
-    name: "Gangtok & Teesta Valley",
+    name: "Gangtok",
     region: "Sikkim",
     country: "India",
     countryCode: "IN",
@@ -218,15 +218,15 @@ export const CLOUDBURST_GLOBAL_STATIONS = [
     elevationM: 1650,
     latitude: 27.3314,
     longitude: 88.6138,
-    riskLevel: "High",
-    riskScore: 91,
-    rainfallRateMmH: 112.0,
-    capeJkg: 2500,
-    pressureDrop3h: 3.5,
-    hazardType: "Extreme Monsoon Cloudburst & Glacial Outburst Risk",
+    riskLevel: "Low",
+    riskScore: 16,
+    rainfallRateMmH: 0.0,
+    capeJkg: 85,
+    pressureDrop3h: 0.3,
+    hazardType: "Teesta Gorge Orographic Funneling (Monitored Hydro Asset)",
     powerAsset: "Teesta-V (510 MW) & Teesta Stage-III Cascade",
     metAgency: "IMD Meteorological Centre Gangtok",
-    advisory: "Red Alert: Emergency barrage pre-release and Teesta riverbank warning.",
+    advisory: "Normal: Standard generation schedules and routine 3-hour bulletin logging.",
   },
   {
     id: "ihr-roing",
@@ -892,6 +892,39 @@ export const KEYLESS_TILE_PROVIDERS = {
   },
 };
 
+export function isMatchingStation(st, activeCity) {
+  if (!st || !activeCity) return false;
+  // 1. Proximity check within ~35km (0.35 degrees)
+  if (
+    Number.isFinite(activeCity.latitude) &&
+    Number.isFinite(activeCity.longitude) &&
+    Number.isFinite(st.latitude) &&
+    Number.isFinite(st.longitude)
+  ) {
+    if (
+      Math.abs(st.latitude - activeCity.latitude) < 0.35 &&
+      Math.abs(st.longitude - activeCity.longitude) < 0.35
+    ) {
+      return true;
+    }
+  }
+  // 2. Name check with normalized accents (e.g. "Gāngtok" -> "gangtok")
+  const normA = (activeCity.name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  const normB = (st.name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  if (normA && normB && (normA.includes(normB) || normB.includes(normA))) {
+    return true;
+  }
+  return false;
+}
+
 export default function WorldRiskMap({
   activeCity,
   onSelectCity,
@@ -912,19 +945,174 @@ export default function WorldRiskMap({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [leafletReady, setLeafletReady] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [liveStationData, setLiveStationData] = useState({});
 
   // Sync mapStyle with theme prop
   useEffect(() => {
     setMapStyle(theme === "dark" ? "esri-dark" : "osm");
   }, [theme]);
 
+  // Fetch real-time live telemetry for all stations across the world
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchLiveTelemetry() {
+      try {
+        const lats = CLOUDBURST_GLOBAL_STATIONS.map((s) => s.latitude.toFixed(3)).join(",");
+        const lons = CLOUDBURST_GLOBAL_STATIONS.map((s) => s.longitude.toFixed(3)).join(",");
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=precipitation,rain,relative_humidity_2m,pressure_msl,temperature_2m&hourly=precipitation,cape,pressure_msl&forecast_days=1`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [data];
+
+        const updates = {};
+        list.forEach((item, idx) => {
+          const st = CLOUDBURST_GLOBAL_STATIONS[idx];
+          if (!st || !item.current) return;
+          const currentRain = item.current.rain ?? item.current.precipitation ?? 0;
+          const humidity = item.current.relative_humidity_2m ?? 50;
+          const hourlyPrecip = item.hourly?.precipitation ?? [];
+          const hourlyCape = item.hourly?.cape ?? [];
+          const peakRain = hourlyPrecip.length ? Math.max(...hourlyPrecip.filter(Number.isFinite)) : 0;
+          const peakCape = hourlyCape.length ? Math.max(...hourlyCape.filter(Number.isFinite)) : 0;
+
+          // Standard cloudburst multi-variable risk index (0-100)
+          const rainPoints = Math.min(25, currentRain * 3.5);
+          const forecastPoints = Math.min(40, peakRain * 2.5);
+          const humidityPoints = humidity >= 92 ? 12 : humidity >= 85 ? 8 : humidity >= 75 ? 4 : 0;
+          const capePoints = peakCape >= 1500 ? 10 : peakCape >= 800 ? 6 : peakCape >= 300 ? 2 : 0;
+          const score = Math.min(100, Math.round(rainPoints + forecastPoints + humidityPoints + capePoints));
+          const level = score >= 60 ? "High" : score >= 25 ? "Watch" : "Low";
+
+          updates[st.id] = {
+            score,
+            level,
+            rain: currentRain,
+            peakRain,
+            cape: Math.round(peakCape),
+            humidity,
+          };
+        });
+        setLiveStationData(updates);
+      } catch {
+        // gracefully fall back to baseline
+      }
+    }
+
+    fetchLiveTelemetry();
+    return () => controller.abort();
+  }, []);
+
+  // Compute live updated stations: active search city takes highest priority!
+  const stationsWithLiveData = CLOUDBURST_GLOBAL_STATIONS.map((st) => {
+    const isDashboardActive = isMatchingStation(st, activeCity);
+
+    // If active in dashboard and has live weather, live weather is 100% authoritative!
+    const activeRiskScore =
+      isDashboardActive && Number.isFinite(liveWeather?.risk?.score)
+        ? liveWeather.risk.score
+        : null;
+    const activeRiskLevel =
+      isDashboardActive && liveWeather?.risk?.level
+        ? liveWeather.risk.level
+        : null;
+    const activeRain =
+      isDashboardActive && Number.isFinite(liveWeather?.current?.precipitation)
+        ? liveWeather.current.precipitation
+        : null;
+    const activeCape =
+      isDashboardActive && Number.isFinite(liveWeather?.risk?.peakCape)
+        ? Math.round(liveWeather.risk.peakCape)
+        : null;
+    const activeAdvisory =
+      isDashboardActive && liveWeather?.risk?.powerAdvisory?.action
+        ? liveWeather.risk.powerAdvisory.action
+        : null;
+    const activeHazard =
+      isDashboardActive && liveWeather?.risk?.imdTier
+        ? liveWeather.risk.imdTier
+        : null;
+
+    const currentScore =
+      activeRiskScore !== null
+        ? activeRiskScore
+        : (liveStationData[st.id]?.score ?? st.riskScore);
+
+    const currentLevel =
+      activeRiskLevel !== null
+        ? activeRiskLevel
+        : (liveStationData[st.id]?.level ?? st.riskLevel);
+
+    const currentRain =
+      activeRain !== null
+        ? activeRain
+        : (liveStationData[st.id]?.rain ?? st.rainfallRateMmH);
+
+    const currentCape =
+      activeCape !== null
+        ? activeCape
+        : (liveStationData[st.id]?.cape ?? st.capeJkg);
+
+    const currentAdvisory =
+      activeAdvisory ||
+      (currentLevel === "High"
+        ? "Red Alert: Severe cloudburst hazard."
+        : currentLevel === "Watch"
+        ? "Watch: Elevated moisture saturation."
+        : "Normal: Standard generation schedules and routine 3-hour bulletin logging.");
+
+    return {
+      ...st,
+      isDashboardActive,
+      riskScore: currentScore,
+      riskLevel: currentLevel,
+      rainfallRateMmH: currentRain,
+      capeJkg: currentCape,
+      hazardType: activeHazard || st.hazardType,
+      advisory: currentAdvisory,
+    };
+  });
+
+  // If activeCity is selected and not in predefined list, inject it dynamically
+  if (
+    activeCity &&
+    Number.isFinite(activeCity.latitude) &&
+    Number.isFinite(activeCity.longitude) &&
+    !stationsWithLiveData.some((st) => isMatchingStation(st, activeCity))
+  ) {
+    stationsWithLiveData.push({
+      id: `active-${activeCity.name}`,
+      name: activeCity.name,
+      region: activeCity.state || activeCity.country || "Active Search",
+      country: activeCity.country || activeCity.countryCode || "Global",
+      countryCode: activeCity.countryCode || "",
+      continent: "Global",
+      basin: activeCity.basin || "Regional Catchment",
+      elevationM: activeCity.elevationM || null,
+      latitude: activeCity.latitude,
+      longitude: activeCity.longitude,
+      riskLevel: liveWeather?.risk?.level || "Low",
+      riskScore: liveWeather?.risk?.score ?? 12,
+      rainfallRateMmH: liveWeather?.current?.precipitation ?? 0,
+      capeJkg: liveWeather?.risk?.peakCape ?? 50,
+      pressureDrop3h: liveWeather?.risk?.pressureDrop3h ?? 0.2,
+      hazardType: liveWeather?.risk?.imdTier || "Live Monitored Station",
+      powerAsset: activeCity.powerAsset || "Regional Power Grid",
+      metAgency: activeCity.metAgency || "National Meteorological Service",
+      advisory: liveWeather?.risk?.powerAdvisory?.action || "Live Monitored Telemetry",
+      isDashboardActive: true,
+      isDynamicActive: true,
+    });
+  }
+
   // Statistics
-  const highRiskCount = CLOUDBURST_GLOBAL_STATIONS.filter((s) => s.riskLevel === "High").length;
-  const watchRiskCount = CLOUDBURST_GLOBAL_STATIONS.filter((s) => s.riskLevel === "Watch").length;
-  const lowRiskCount = CLOUDBURST_GLOBAL_STATIONS.filter((s) => s.riskLevel === "Low").length;
+  const highRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "High").length;
+  const watchRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Watch").length;
+  const lowRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Low").length;
 
   // Filter stations
-  const filteredStations = CLOUDBURST_GLOBAL_STATIONS.filter((station) => {
+  const filteredStations = stationsWithLiveData.filter((station) => {
     const matchesRisk = riskFilter === "ALL" || station.riskLevel === riskFilter;
     const matchesContinent =
       continentFilter === "ALL" || station.continent === continentFilter;
@@ -1056,20 +1244,9 @@ export default function WorldRiskMap({
     markersGroup.clearLayers();
 
     filteredStations.forEach((st) => {
-      // Determine if this is currently the active station in the parent dashboard
-      const isDashboardActive =
-        activeCity &&
-        st.name.toLowerCase().includes(activeCity.name.toLowerCase());
-
-      // If active station matches and parent has live weather, use live score!
-      const currentScore =
-        isDashboardActive && liveWeather?.risk?.score
-          ? liveWeather.risk.score
-          : st.riskScore;
-      const currentLevel =
-        isDashboardActive && liveWeather?.risk?.level
-          ? liveWeather.risk.level
-          : st.riskLevel;
+      const isDashboardActive = st.isDashboardActive;
+      const currentScore = st.riskScore;
+      const currentLevel = st.riskLevel;
 
       // Custom HTML Marker with pulsing radar ring for HIGH RISK
       let markerHtml = "";
@@ -1248,6 +1425,11 @@ export default function WorldRiskMap({
       );
 
       activeReticleRef.current = reticle;
+
+      // Pan to the searched/active city smoothly
+      map.flyTo([activeCity.latitude, activeCity.longitude], Math.max(map.getZoom(), 7), {
+        duration: 1.2,
+      });
     }
   }, [activeCity]);
 
