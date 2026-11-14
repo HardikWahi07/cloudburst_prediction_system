@@ -1,3 +1,6 @@
+const getMeasurement = (value, min, max = Infinity) =>
+  Number.isFinite(value) && value >= min && value <= max ? value : null;
+
 const getRisk = (current, hourly) => {
   // Open-Meteo returns local timestamps and hourly precipitation for the preceding hour.
   const nextHour = hourly.time.findIndex((time) => time > current.time);
@@ -73,27 +76,38 @@ export const getWeatherData = async (latitude, longitude) => {
 
   const data = await response.json();
 
+  const { current, hourly } = data;
+  if (
+    typeof current?.time !== "string" ||
+    !Array.isArray(hourly?.time) ||
+    !Array.isArray(hourly.precipitation) ||
+    !Array.isArray(hourly.precipitation_probability)
+  ) {
+    throw new Error("Weather API returned an incomplete forecast");
+  }
+
   const weather = {
     location: {
       latitude,
       longitude,
     },
     current: {
-      time: data.current.time,
-      temperature: data.current.temperature_2m,
-      humidity: data.current.relative_humidity_2m,
-      precipitation: data.current.precipitation,
-      rain: data.current.rain,
-      pressure: data.current.pressure_msl,
-      cloudCover: data.current.cloud_cover,
-      windSpeed: data.current.wind_speed_10m,
+      time: current.time,
+      temperature: current.temperature_2m,
+      humidity: getMeasurement(current.relative_humidity_2m, 0, 100),
+      precipitation: getMeasurement(current.precipitation, 0),
+      rain: getMeasurement(current.rain, 0),
+      pressure: current.pressure_msl,
+      cloudCover: getMeasurement(current.cloud_cover, 0, 100),
+      windSpeed: getMeasurement(current.wind_speed_10m, 0),
     },
     hourly: {
-      time: data.hourly.time,
-      precipitation: data.hourly.precipitation,
-      precipitationProbability:
-        data.hourly.precipitation_probability,
-      humidity: data.hourly.relative_humidity_2m,
+      time: hourly.time,
+      precipitation: hourly.precipitation.map((value) => getMeasurement(value, 0)),
+      precipitationProbability: hourly.precipitation_probability.map(
+        (value) => getMeasurement(value, 0, 100),
+      ),
+      humidity: hourly.relative_humidity_2m,
     },
   };
 
