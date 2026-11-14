@@ -4,6 +4,22 @@ import "./App.css";
 
 const TOWN_STORAGE_KEY = "cloudburst.selectedTown";
 
+function readSavedTown() {
+  try {
+    return localStorage.getItem(TOWN_STORAGE_KEY) || "Dehradun";
+  } catch {
+    return "Dehradun";
+  }
+}
+
+function saveTown(name) {
+  try {
+    localStorage.setItem(TOWN_STORAGE_KEY, name);
+  } catch {
+    // The current selection still works when storage is blocked.
+  }
+}
+
 function formatPeakTime(peakTime, currentTime) {
   const [date, time] = peakTime.split("T");
   return `${time} IST${date === currentTime.slice(0, 10) ? "" : ` (${date})`}`;
@@ -11,9 +27,7 @@ function formatPeakTime(peakTime, currentTime) {
 
 function App() {
   const [locations, setLocations] = useState([]);
-  const [townName, setTownName] = useState(
-    () => localStorage.getItem(TOWN_STORAGE_KEY) || "Dehradun",
-  );
+  const [townName, setTownName] = useState(readSavedTown);
   const [weather, setWeather] = useState(null);
   const [locationsError, setLocationsError] = useState("");
   const [error, setError] = useState("");
@@ -64,7 +78,7 @@ function App() {
   const changeTown = (event) => {
     const name = event.target.value;
     setTownName(name);
-    localStorage.setItem(TOWN_STORAGE_KEY, name);
+    saveTown(name);
     setWeather(null);
     setError("");
   };
