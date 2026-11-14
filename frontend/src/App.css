@@ -12,7 +12,7 @@ body {
 .dashboard {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: clamp(20px, 5vw, 40px) clamp(12px, 4vw, 24px);
 }
 
 .dashboard h1 {
@@ -50,22 +50,25 @@ body {
 .town-picker {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 
 .town-picker select {
   font: inherit;
+  min-height: 44px;
   padding: 6px 10px;
 }
 
 .refresh-button {
   font: inherit;
+  min-height: 44px;
   padding: 6px 12px;
 }
 
 .weather-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 20px;
   margin-top: 20px;
 }
@@ -141,4 +144,26 @@ body {
   padding: 8px 4px;
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
+}
+
+
+.dashboard :is(select, button, summary):focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .weather-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .weather-card {
+    padding: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  .weather-card p {
+    font-size: 1.25rem;
+  }
 }
