@@ -1,14 +1,25 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5001").replace(/\/+$/, "");
+const REQUEST_TIMEOUT_MS = 15000;
 
-export const getLocations = async (signal) => {
-  const response = await fetch(`${API_URL}/api/locations`, { signal });
+async function requestJson(path, signal, failureMessage) {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch Himalayan locations");
+  try {
+    const response = await fetch(`${API_URL}${path}`, { signal: requestSignal });
+    if (!response.ok) throw new Error(failureMessage);
+    return await response.json();
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (timeout.aborted) {
+      throw new Error("The weather server took too long to respond. Try again.", { cause: error });
+    }
+    throw new Error(failureMessage, { cause: error });
   }
+}
 
-  return response.json();
-};
+export const getLocations = (signal) =>
+  requestJson("/api/locations", signal, "Failed to fetch Himalayan locations");
 
 export const getWeather = async (latitude, longitude, signal) => {
   const params = new URLSearchParams({
@@ -16,14 +27,5 @@ export const getWeather = async (latitude, longitude, signal) => {
     lon: String(longitude),
   });
 
-  const response = await fetch(
-    `${API_URL}/api/weather?${params.toString()}`,
-    { signal },
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch weather data");
-  }
-
-  return response.json();
+  return requestJson(`/api/weather?${params}`, signal, "Failed to fetch weather data");
 };
