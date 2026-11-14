@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLocations, getWeather } from "./services/weather.service";
+import HourlyForecast from "./components/HourlyForecast";
 import "./App.css";
 
 const TOWN_STORAGE_KEY = "cloudburst.selectedTown";
@@ -179,6 +180,8 @@ function App() {
               )}
             </section>
           )}
+
+          <HourlyForecast hourly={weather.hourly} currentTime={weather.current.time} />
 
           <p className="updated">
             Weather data time: {weather.current.time} (IST)
