@@ -1266,9 +1266,12 @@ export default function WorldRiskMap({ activeCity, onSelectCity, liveWeather }) 
             <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-semibold font-mono animate-pulse">
               LIVE RADAR
             </span>
+            <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
+              Free OpenStreetMap · No API Key
+            </span>
           </div>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Interactive planetary observatory identifying steep orographic flash flood zones,
+            Open-source planetary observatory (powered by OpenStreetMap &amp; Leaflet — zero API keys or tokens needed) identifying steep orographic flash flood zones,
             Himalayan cloudburst corridors, convective instability hotspots, and monitored hydro assets.
           </p>
         </div>
@@ -1604,3 +1607,4 @@ export default function WorldRiskMap({ activeCity, onSelectCity, liveWeather }) 
     </section>
   );
 }
+
