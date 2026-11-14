@@ -98,3 +98,20 @@ body {
   color: #64748b;
   font-size: 14px;
 }
+
+.forecast-summary {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.dashboard .forecast-summary h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.forecast-summary p:last-child {
+  margin-bottom: 0;
+}

@@ -165,13 +165,19 @@ function App() {
           </div>
 
           {summary && (
-            <p>
-              {summary.peakTime && summary.peakPrecipitationMm > 0
-                ? `Heaviest rain: ${summary.peakPrecipitationMm} mm at ${formatPeakTime(summary.peakTime, weather.current.time)}`
-                : summary.peakPrecipitationMm === 0
-                  ? "No precipitation in the remaining forecast."
-                  : "Peak rainfall forecast unavailable."}
-            </p>
+            <section className="forecast-summary" aria-labelledby="forecast-summary-title">
+              <h2 id="forecast-summary-title">Forecast Summary</h2>
+              <p>
+                {summary.peakTime && summary.peakPrecipitationMm > 0
+                  ? `Heaviest rain: ${summary.peakPrecipitationMm} mm at ${formatPeakTime(summary.peakTime, weather.current.time)}`
+                  : summary.peakPrecipitationMm === 0
+                    ? "No precipitation in the remaining forecast."
+                    : "Peak rainfall forecast unavailable."}
+              </p>
+              {Number.isFinite(summary.maxProbability) && (
+                <p>Highest hourly chance of precipitation: <strong>{summary.maxProbability}%</strong></p>
+              )}
+            </section>
           )}
 
           <p className="updated">
