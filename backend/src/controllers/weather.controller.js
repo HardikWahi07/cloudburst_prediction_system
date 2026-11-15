@@ -1,4 +1,8 @@
 import {
+  analyzeRainfallSeries,
+  analyzeStationRainfall,
+} from "../services/rainfallAnalytics.service.js";
+import {
   getBatchWeatherData,
   getHistoricalWeatherData,
   getWeatherData,
@@ -157,6 +161,78 @@ export const getBatchWeather = async (req, res) => {
     return res.status(502).json({
       success: false,
       message: "Failed to fetch batch weather data",
+      error: error.message,
+    });
+  }
+};
+
+export const getRainfallAnalytics = async (req, res) => {
+  try {
+    // 1. Direct timeseries payload via POST
+    if (req.method === "POST" && Array.isArray(req.body?.values)) {
+      const { timestamps = [], values = [] } = req.body;
+      const ts =
+        Array.isArray(timestamps) && timestamps.length === values.length
+          ? timestamps
+          : values.map((_, i) => `T+${i}h`);
+
+      const analysis = analyzeRainfallSeries(ts, values);
+      return res.status(200).json({
+        success: true,
+        mode: "custom_timeseries",
+        ...analysis,
+      });
+    }
+
+    // 2. Station coordinate query via GET or POST
+    const lat = req.query.lat ?? req.body?.lat;
+    const lon = req.query.lon ?? req.body?.lon;
+
+    if (lat === undefined || lon === undefined || lat === "" || lon === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required (e.g. /api/weather/rainfall-analytics?lat=30.73&lon=79.06)",
+      });
+    }
+
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid latitude or longitude coordinates",
+      });
+    }
+
+    const pastDays = req.query.pastDays ? Number(req.query.pastDays) : 3;
+    const forecastDays = req.query.forecastDays ? Number(req.query.forecastDays) : 2;
+    const startDate = req.query.startDate || req.query.start_date || null;
+    const endDate = req.query.endDate || req.query.end_date || null;
+
+    const analysis = await analyzeStationRainfall(latitude, longitude, {
+      pastDays,
+      forecastDays,
+      startDate,
+      endDate,
+    });
+
+    return res.status(200).json({
+      success: true,
+      ...analysis,
+    });
+  } catch (error) {
+    console.error("Rainfall Analytics Controller Error:", error);
+    return res.status(502).json({
+      success: false,
+      message: "Failed to generate rainfall analytics",
       error: error.message,
     });
   }
