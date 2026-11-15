@@ -1,0 +1,247 @@
+{
+  "schema_version": 2,
+  "model_name": "ERA5 three-hour rainfall intensity baseline",
+  "algorithm": "RandomForestClassifier",
+  "status": "experimental_reanalysis_baseline",
+  "cloudburst_validated": false,
+  "synthetic": false,
+  "features": [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "pressure_msl",
+    "precipitation",
+    "wind_speed_10m",
+    "cloud_cover"
+  ],
+  "classes": [
+    "Low",
+    "Watch",
+    "High"
+  ],
+  "target": "Maximum precipitation in t+1 through t+3 hours: Low <2, Watch 2\u2013<10, High >=10 mm/h. These are project rainfall classes, not cloudburst labels.",
+  "horizon_hours": 3,
+  "thresholds_mm": [
+    2,
+    10
+  ],
+  "training_period": "2020\u20132022",
+  "validation_period": "2023",
+  "test_period": "2024",
+  "temporal_embargo_hours": 3,
+  "training_samples": 131505,
+  "validation_samples": 43785,
+  "test_samples": 43905,
+  "validation_metrics": {
+    "accuracy": 0.881808838643371,
+    "balanced_accuracy": 0.7807944486461761,
+    "log_loss": 0.2545604938165908,
+    "classification_report": {
+      "Low": {
+        "precision": 0.9908121718632809,
+        "recall": 0.8860489627748767,
+        "f1-score": 0.9355067148890969,
+        "support": 41746.0
+      },
+      "Watch": {
+        "precision": 0.25062893081761006,
+        "recall": 0.7977977977977978,
+        "f1-score": 0.3814309643455372,
+        "support": 1998.0
+      },
+      "High": {
+        "precision": 0.2903225806451613,
+        "recall": 0.6585365853658537,
+        "f1-score": 0.40298507462686567,
+        "support": 41.0
+      },
+      "accuracy": 0.881808838643371,
+      "macro avg": {
+        "precision": 0.5105878944420174,
+        "recall": 0.7807944486461761,
+        "f1-score": 0.5733075846204999,
+        "support": 43785.0
+      },
+      "weighted avg": {
+        "precision": 0.9563801474519711,
+        "recall": 0.881808838643371,
+        "f1-score": 0.9097244438639334,
+        "support": 43785.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        36989,
+        4752,
+        5
+      ],
+      [
+        343,
+        1594,
+        61
+      ],
+      [
+        0,
+        14,
+        27
+      ]
+    ],
+    "majority_baseline_accuracy": 0.9534315404819002,
+    "class_counts": {
+      "Low": 41746,
+      "Watch": 1998,
+      "High": 41
+    }
+  },
+  "metrics": {
+    "accuracy": 0.890786926318187,
+    "balanced_accuracy": 0.8382153734253693,
+    "log_loss": 0.240731992538975,
+    "classification_report": {
+      "Low": {
+        "precision": 0.9916473811613864,
+        "recall": 0.8945170965806839,
+        "f1-score": 0.9405813190694858,
+        "support": 41675.0
+      },
+      "Watch": {
+        "precision": 0.28450795712893795,
+        "recall": 0.8221492257156264,
+        "f1-score": 0.4227289178429244,
+        "support": 2131.0
+      },
+      "High": {
+        "precision": 0.512987012987013,
+        "recall": 0.797979797979798,
+        "f1-score": 0.6245059288537549,
+        "support": 99.0
+      },
+      "accuracy": 0.890786926318187,
+      "macro avg": {
+        "precision": 0.5963807837591125,
+        "recall": 0.8382153734253693,
+        "f1-score": 0.6626053885887216,
+        "support": 43905.0
+      },
+      "weighted avg": {
+        "precision": 0.9562459123295357,
+        "recall": 0.890786926318187,
+        "f1-score": 0.9147338089762126,
+        "support": 43905.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        37279,
+        4386,
+        10
+      ],
+      [
+        314,
+        1752,
+        65
+      ],
+      [
+        0,
+        20,
+        79
+      ]
+    ],
+    "majority_baseline_accuracy": 0.9492085183919827,
+    "class_counts": {
+      "Low": 41675,
+      "Watch": 2131,
+      "High": 99
+    }
+  },
+  "trained_at": "2026-11-14T19:57:00.204684+00:00",
+  "provenance": {
+    "source": "Open-Meteo ERA5 reanalysis",
+    "documentation": "https://open-meteo.com/en/docs/historical-weather-api",
+    "synthetic": false,
+    "limitations": "Gridded reanalysis, not rain-gauge observations or verified cloudburst event labels.",
+    "sources": [
+      {
+        "station": "dehradun",
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=30.3165&longitude=78.0322&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+        "sha256": "3cb1f0c9508af02ac49b0143c9f02e0a6d210a8f7e3136f1a47989d0d2aefc55",
+        "elevation": 652.0,
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "\u00b0C",
+          "relative_humidity_2m": "%",
+          "pressure_msl": "hPa",
+          "precipitation": "mm",
+          "wind_speed_10m": "km/h",
+          "cloud_cover": "%"
+        }
+      },
+      {
+        "station": "shimla",
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=31.1048&longitude=77.1734&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+        "sha256": "b47bebe79f77f0c7d189b60851cbd5bb3fee101c6b91f9cdc1a3edc1091636ad",
+        "elevation": 2195.0,
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "\u00b0C",
+          "relative_humidity_2m": "%",
+          "pressure_msl": "hPa",
+          "precipitation": "mm",
+          "wind_speed_10m": "km/h",
+          "cloud_cover": "%"
+        }
+      },
+      {
+        "station": "manali",
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=32.2396&longitude=77.1887&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+        "sha256": "3f19fcabc30dcab38eddeb9133d5a0cfb2534904f44df4b98aa29e19a8b34bbf",
+        "elevation": 1864.0,
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "\u00b0C",
+          "relative_humidity_2m": "%",
+          "pressure_msl": "hPa",
+          "precipitation": "mm",
+          "wind_speed_10m": "km/h",
+          "cloud_cover": "%"
+        }
+      },
+      {
+        "station": "joshimath",
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=30.5506&longitude=79.5658&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+        "sha256": "a25213dc67ae84da03509638fdc64507538d2ada1954031462842292554483a5",
+        "elevation": 2046.0,
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "\u00b0C",
+          "relative_humidity_2m": "%",
+          "pressure_msl": "hPa",
+          "precipitation": "mm",
+          "wind_speed_10m": "km/h",
+          "cloud_cover": "%"
+        }
+      },
+      {
+        "station": "gangtok",
+        "url": "https://archive-api.open-meteo.com/v1/archive?latitude=27.3389&longitude=88.6065&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+        "sha256": "08135a71210e25f803db23624a821ac0a3328fb060b56cc8cc3a2d50cc73cc3c",
+        "elevation": 1487.0,
+        "units": {
+          "time": "iso8601",
+          "temperature_2m": "\u00b0C",
+          "relative_humidity_2m": "%",
+          "pressure_msl": "hPa",
+          "precipitation": "mm",
+          "wind_speed_10m": "km/h",
+          "cloud_cover": "%"
+        }
+      }
+    ],
+    "dataset_sha256": "88e982cfa1bf686b9ad2e62cd01e87069b8c3daf45d1464914d345d60a874f77"
+  },
+  "limitations": [
+    "No verified cloudburst event labels; cannot estimate cloudburst probability.",
+    "ERA5 grid averages smooth localized extremes.",
+    "Live forecast inputs differ from historical reanalysis; operational skill is unvalidated.",
+    "Random forest class probabilities are not calibrated confidence estimates."
+  ]
+}

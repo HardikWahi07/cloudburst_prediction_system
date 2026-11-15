@@ -8,15 +8,19 @@ import { WeatherContext } from './weather-context.js';
 export function WeatherProvider({ children }) {
   const { location } = useLocation();
   const { settings } = useSettings();
-  const [weather, setWeather] = useState(null);
+  const [snapshot, setSnapshot] = useState(null);
   const [pending, setPending] = useState(true);
-  const [error, setError] = useState(null);
+  const [failure, setFailure] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshCount, setRefreshCount] = useState(0);
 
   const refreshInterval = settings?.refreshInterval || DEFAULT_REFRESH_INTERVAL;
   const latitude = location?.latitude;
   const longitude = location?.longitude;
+
+  const key = `${latitude},${longitude}`;
+  const weather = snapshot?.key === key ? snapshot.data : null;
+  const error = failure?.key === key ? failure.message : null;
 
   // Reset weather data when coordinates change to indicate loading new town
   useEffect(() => {
@@ -27,14 +31,14 @@ export function WeatherProvider({ children }) {
     getWeather(latitude, longitude, controller.signal)
       .then((data) => {
         if (!controller.signal.aborted) {
-          setWeather(data);
+          setSnapshot({ key: `${latitude},${longitude}`, data });
           setLastUpdated(new Date().toISOString());
-          setError(null);
+          setFailure(null);
         }
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          setError(err.message || 'Failed to fetch weather data');
+          setFailure({ key: `${latitude},${longitude}`, message: err.message || 'Failed to fetch weather data' });
         }
       })
       .finally(() => {
@@ -59,12 +63,12 @@ export function WeatherProvider({ children }) {
 
   const refreshWeather = useCallback(() => {
     setPending(true);
-    setError(null);
+    setFailure(null);
     setRefreshCount((c) => c + 1);
   }, []);
 
-  const loading = !weather && pending && !error;
-  const apiStatus = pending ? 'loading' : error ? 'error' : 'connected';
+  const loading = !weather && !error;
+  const apiStatus = loading || pending ? 'loading' : error ? 'error' : 'connected';
 
   return (
     <WeatherContext.Provider
@@ -74,7 +78,7 @@ export function WeatherProvider({ children }) {
         pending,
         error,
         refreshWeather,
-        lastUpdated,
+        lastUpdated: weather ? lastUpdated : null,
         location,
         apiStatus,
       }}

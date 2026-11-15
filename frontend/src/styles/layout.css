@@ -393,3 +393,35 @@
   margin-top: var(--space-1);
   font-size: var(--text-sm);
 }
+
+/* ── Print Media Styles ──────────────────────────────────── */
+@media print {
+  .sidebar,
+  .topbar,
+  .sidebar-overlay,
+  .mobile-menu-btn,
+  .btn {
+    display: none !important;
+  }
+
+  .main-area {
+    margin-left: 0 !important;
+  }
+
+  .main-content {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .card {
+    background: #ffffff !important;
+    border: 1px solid #cccccc !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+}

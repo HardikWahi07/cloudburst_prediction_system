@@ -3,7 +3,7 @@ import { AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react';
 export default function RiskBadge({ risk }) {
   if (!risk) return null;
 
-  const level = (risk.level || 'Low').toLowerCase();
+  const level = (risk.level || 'Unavailable').toLowerCase();
 
   const config = {
     severe: {
@@ -11,35 +11,35 @@ export default function RiskBadge({ risk }) {
       borderClass: 'var(--color-danger)',
       bgClass: 'var(--color-danger-light)',
       icon: AlertCircle,
-      title: 'Severe Cloudburst Risk',
+      title: 'Severe Weather Indicator',
     },
     high: {
       badgeClass: 'badge-danger',
       borderClass: 'var(--color-danger)',
       bgClass: 'var(--color-danger-light)',
       icon: AlertCircle,
-      title: 'High Cloudburst Risk',
+      title: 'High Weather Indicator',
     },
     watch: {
       badgeClass: 'badge-warning',
       borderClass: 'var(--color-warning)',
       bgClass: 'var(--color-warning-light)',
       icon: AlertTriangle,
-      title: 'Cloudburst Watch',
+      title: 'Weather Watch',
     },
     low: {
       badgeClass: 'badge-success',
       borderClass: 'var(--color-success)',
       bgClass: 'var(--color-success-light)',
       icon: ShieldCheck,
-      title: 'Low Cloudburst Risk',
+      title: 'Low Weather Indicator',
     },
   }[level] || {
     badgeClass: 'badge-info',
     borderClass: 'var(--color-primary)',
     bgClass: 'var(--color-primary-light)',
     icon: ShieldCheck,
-    title: 'Normal Meteorological Conditions',
+    title: 'Weather Assessment Unavailable',
   };
 
   const IconComponent = config.icon;

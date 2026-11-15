@@ -1,3 +1,6 @@
+import { getCloudburstEnsemble } from './cloudburst-ensemble.js';
+import { getMlPrediction } from "./ml.service.js";
+
 const getMeasurement = (value, min, max = Infinity) =>
   Number.isFinite(value) && value >= min && value <= max ? value : null;
 
@@ -8,6 +11,9 @@ const getRisk = (current, hourly) => {
     ? []
     : hourly.precipitation.slice(nextHour, nextHour + 3).filter(Number.isFinite);
   const peak = upcoming.length ? Math.max(...upcoming) : null;
+  if (upcoming.length !== 3 || !Number.isFinite(current.rain) || !Number.isFinite(current.humidity)) {
+    return { level: 'Unavailable', score: null, reason: 'Insufficient current or upcoming rainfall measurements.' };
+  }
   const rain = current.rain;
   const humidity = current.humidity;
 
@@ -61,7 +67,7 @@ export const getWeatherData = async (latitude, longitude) => {
     current:
       "temperature_2m,relative_humidity_2m,precipitation,rain,pressure_msl,cloud_cover,wind_speed_10m",
     hourly:
-      "precipitation,precipitation_probability,relative_humidity_2m",
+      "temperature_2m,relative_humidity_2m,pressure_msl,precipitation,wind_speed_10m,cloud_cover,precipitation_probability",
     forecast_days: "2",
     timezone: "Asia/Kolkata",
   }).toString();
@@ -93,11 +99,11 @@ export const getWeatherData = async (latitude, longitude) => {
     },
     current: {
       time: current.time,
-      temperature: current.temperature_2m,
+      temperature: getMeasurement(current.temperature_2m, -90, 65),
       humidity: getMeasurement(current.relative_humidity_2m, 0, 100),
       precipitation: getMeasurement(current.precipitation, 0),
       rain: getMeasurement(current.rain, 0),
-      pressure: current.pressure_msl,
+      pressure: getMeasurement(current.pressure_msl, 800, 1100),
       cloudCover: getMeasurement(current.cloud_cover, 0, 100),
       windSpeed: getMeasurement(current.wind_speed_10m, 0),
     },
@@ -111,9 +117,26 @@ export const getWeatherData = async (latitude, longitude) => {
     },
   };
 
+  // Use the latest completed hourly record for the hourly-trained model.
+  // Current precipitation has a shorter accumulation and must not be substituted.
+  const issueIndex = hourly.time.findLastIndex((time) => time <= current.time);
+  const at = (key) => issueIndex < 0 ? null : hourly[key]?.[issueIndex];
+  const modelMeasurements = {
+    temperature: at('temperature_2m'), humidity: at('relative_humidity_2m'),
+    pressure: at('pressure_msl'), precipitation: at('precipitation'),
+    windSpeed: at('wind_speed_10m'), cloudCover: at('cloud_cover'),
+  };
+  const [prediction, cloudburstEnsemble] = await Promise.all([
+    getMlPrediction(modelMeasurements),
+    getCloudburstEnsemble(latitude, longitude, current.time),
+  ]);
+  prediction.issueTime = issueIndex < 0 ? null : hourly.time[issueIndex];
+
   return {
     ...weather,
     risk: getRisk(weather.current, weather.hourly),
     summary: getForecastSummary(weather.current, weather.hourly),
+    prediction,
+    cloudburstEnsemble,
   };
 };

@@ -183,7 +183,7 @@ export default function Dashboard() {
               Weather data synchronized from Open-Meteo API (Asia/Kolkata timezone).
             </p>
             <p style={{ fontStyle: 'italic' }}>
-              Meteorological observation only. Validated machine learning cloudburst prediction model is currently in development.
+              Experimental rainfall baseline only. Cloudburst event prediction and operational warnings are not validated.
             </p>
           </div>
         </>

@@ -1,0 +1,84 @@
+{
+  "source": "Open-Meteo ERA5 reanalysis",
+  "documentation": "https://open-meteo.com/en/docs/historical-weather-api",
+  "synthetic": false,
+  "limitations": "Gridded reanalysis, not rain-gauge observations or verified cloudburst event labels.",
+  "sources": [
+    {
+      "station": "dehradun",
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=30.3165&longitude=78.0322&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+      "sha256": "3cb1f0c9508af02ac49b0143c9f02e0a6d210a8f7e3136f1a47989d0d2aefc55",
+      "elevation": 652.0,
+      "units": {
+        "time": "iso8601",
+        "temperature_2m": "\u00b0C",
+        "relative_humidity_2m": "%",
+        "pressure_msl": "hPa",
+        "precipitation": "mm",
+        "wind_speed_10m": "km/h",
+        "cloud_cover": "%"
+      }
+    },
+    {
+      "station": "shimla",
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=31.1048&longitude=77.1734&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+      "sha256": "b47bebe79f77f0c7d189b60851cbd5bb3fee101c6b91f9cdc1a3edc1091636ad",
+      "elevation": 2195.0,
+      "units": {
+        "time": "iso8601",
+        "temperature_2m": "\u00b0C",
+        "relative_humidity_2m": "%",
+        "pressure_msl": "hPa",
+        "precipitation": "mm",
+        "wind_speed_10m": "km/h",
+        "cloud_cover": "%"
+      }
+    },
+    {
+      "station": "manali",
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=32.2396&longitude=77.1887&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+      "sha256": "3f19fcabc30dcab38eddeb9133d5a0cfb2534904f44df4b98aa29e19a8b34bbf",
+      "elevation": 1864.0,
+      "units": {
+        "time": "iso8601",
+        "temperature_2m": "\u00b0C",
+        "relative_humidity_2m": "%",
+        "pressure_msl": "hPa",
+        "precipitation": "mm",
+        "wind_speed_10m": "km/h",
+        "cloud_cover": "%"
+      }
+    },
+    {
+      "station": "joshimath",
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=30.5506&longitude=79.5658&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+      "sha256": "a25213dc67ae84da03509638fdc64507538d2ada1954031462842292554483a5",
+      "elevation": 2046.0,
+      "units": {
+        "time": "iso8601",
+        "temperature_2m": "\u00b0C",
+        "relative_humidity_2m": "%",
+        "pressure_msl": "hPa",
+        "precipitation": "mm",
+        "wind_speed_10m": "km/h",
+        "cloud_cover": "%"
+      }
+    },
+    {
+      "station": "gangtok",
+      "url": "https://archive-api.open-meteo.com/v1/archive?latitude=27.3389&longitude=88.6065&start_date=2020-01-01&end_date=2024-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cprecipitation%2Cwind_speed_10m%2Ccloud_cover&models=era5&timezone=Asia%2FKolkata&wind_speed_unit=kmh",
+      "sha256": "08135a71210e25f803db23624a821ac0a3328fb060b56cc8cc3a2d50cc73cc3c",
+      "elevation": 1487.0,
+      "units": {
+        "time": "iso8601",
+        "temperature_2m": "\u00b0C",
+        "relative_humidity_2m": "%",
+        "pressure_msl": "hPa",
+        "precipitation": "mm",
+        "wind_speed_10m": "km/h",
+        "cloud_cover": "%"
+      }
+    }
+  ],
+  "dataset_sha256": "88e982cfa1bf686b9ad2e62cd01e87069b8c3daf45d1464914d345d60a874f77"
+}

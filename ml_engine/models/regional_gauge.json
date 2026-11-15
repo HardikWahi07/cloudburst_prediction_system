@@ -1,0 +1,124 @@
+{
+  "task": "regional_gauge_100mm_next_3h",
+  "features": [
+    "temperature",
+    "humidity",
+    "log_rain"
+  ],
+  "sources": {
+    "HOU": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=HOU&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "c1102299b9658ce6d7ec4668329d01ef820ca74a1c19efda7495f2237990c9d5"
+    },
+    "IAH": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=IAH&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "86d5851a5542af4dc44110d6a0f61abfad473c0019f6a4ee62e3c3c326b25782"
+    },
+    "FLL": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=FLL&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "4fb9ffa257f720c367f3c3c094ae97044f0dbeb6bea692f522f24fa80b401a5c"
+    },
+    "MIA": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=MIA&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "2cab8140b018884f43bc29192a4ed25a1591027000f066da3341dd292910ecfc"
+    },
+    "MSY": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=MSY&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "521b072a066af2e31ca313434995f4f554433994c31758033f17583e3b9e189d"
+    },
+    "PBI": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=PBI&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "abe7a009221807709cb7508b40f501548d9b3bcab1400ace94fc392b8ee1fb42"
+    },
+    "TPA": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=TPA&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "8f6cb1fb0cdc046516f052cd0639ffe5e82fb823846a640309a5f3126362de67"
+    },
+    "AUS": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=AUS&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "cf3977b37e2377626cb6196dbf9bb124c1d0ff78370746463f6e22ffa2cb703e"
+    },
+    "BTR": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=BTR&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "30adff591096c2380bfd661c5827fa13e4a72eacc8d7be09a1e61c1ecea5b02e"
+    },
+    "MOB": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=MOB&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "c6513818cf9ef67a2339f6dcf80609161e0eeb4b4b0066b443213243db101e40"
+    },
+    "CRP": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=CRP&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "71b3244f9eb4ce928ba533e523d548f466f38e06f2bef0c28d01e33db3d79b51"
+    },
+    "SJU": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=SJU&data=tmpf&data=relh&data=p01i&year1=2015&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "abe7a009221807709cb7508b40f501548d9b3bcab1400ace94fc392b8ee1fb42"
+    },
+    "ISP": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=ISP&data=tmpf&data=relh&data=p01i&year1=2010&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "447f2c13599e8af0a02ffeccb26b9cb23509f70721c3b2df0106dd0a130505ad"
+    },
+    "PNS": {
+      "url": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=PNS&data=tmpf&data=relh&data=p01i&year1=2010&month1=1&day1=1&year2=2025&month2=1&day2=1&tz=Etc%2FUTC&format=onlycomma&missing=M&trace=T&report_type=3",
+      "sha256": "6c0ca86bb82a7d5da7cfbd26d6fb38b75f349c817ddd519ce9d9ec46077afa5a"
+    }
+  },
+  "training_stations": [
+    "AUS",
+    "BTR",
+    "CRP",
+    "FLL",
+    "HOU",
+    "IAH",
+    "ISP",
+    "MIA",
+    "MOB",
+    "MSY",
+    "PNS",
+    "TPA"
+  ],
+  "train_windows": 786333,
+  "train_positive_windows": 12,
+  "test": {
+    "windows": 313635,
+    "positive_windows": 0,
+    "confusion": [
+      [
+        307034,
+        6601
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "average_precision": null
+  },
+  "himalayan_comparison": {
+    "windows": 11,
+    "positive_windows": 2,
+    "confusion": [
+      [
+        8,
+        1
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "average_precision": 0.16233766233766234
+  },
+  "train_positive_station_days": 5,
+  "threshold": 100,
+  "held_station_confusion": [
+    [
+      766555,
+      19766
+    ],
+    [
+      1,
+      11
+    ]
+  ]
+}
