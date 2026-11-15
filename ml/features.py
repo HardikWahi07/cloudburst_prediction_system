@@ -145,3 +145,4 @@ def prepare_feature_matrix(df: pd.DataFrame, target_col: str = "cloudburst_event
 
     metadata = df_feat[["timestamp", "station_id", "station_name", "latitude", "longitude", "elevation_m"]].copy()
     return X, y, metadata, FEATURE_COLUMNS
+
