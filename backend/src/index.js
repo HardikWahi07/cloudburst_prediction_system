@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import locationRoutes from "./routes/locations.routes.js";
 import weatherRoutes from "./routes/weather.routes.js";
 import himalayanRoutes from "./routes/himalayan.routes.js";
+import alertRoutes from "./routes/alert.routes.js";
 dotenv.config();
 
 const app = express();
@@ -28,6 +29,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/locations", locationRoutes);
 app.use("/api/weather", weatherRoutes);
 app.use("/api/himalayan", himalayanRoutes);
+app.use("/api/alerts", alertRoutes);
 
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {

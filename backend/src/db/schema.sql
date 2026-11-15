@@ -59,3 +59,43 @@ CREATE INDEX IF NOT EXISTS idx_himalayan_locations_state ON himalayan_monitoring
 CREATE INDEX IF NOT EXISTS idx_himalayan_locations_district ON himalayan_monitoring_locations (district_id);
 CREATE INDEX IF NOT EXISTS idx_himalayan_districts_state ON himalayan_districts (state_id);
 
+-- Early-Warning and Alert Engine Table
+-- Tracks threshold-triggered alerts, affected locations, severity, duplicate suppression, and acknowledgements.
+CREATE TABLE IF NOT EXISTS early_warning_alerts (
+    id VARCHAR(64) PRIMARY KEY,
+    location_id VARCHAR(64),
+    location_name VARCHAR(150) NOT NULL,
+    district VARCHAR(100),
+    state VARCHAR(100) NOT NULL,
+    latitude NUMERIC(8, 4) NOT NULL,
+    longitude NUMERIC(8, 4) NOT NULL,
+    elevation_m INTEGER,
+    basin VARCHAR(150),
+    power_asset VARCHAR(255),
+    severity VARCHAR(30) NOT NULL DEFAULT 'WATCH', -- 'CRITICAL', 'WARNING', 'WATCH', 'ADVISORY'
+    alert_code VARCHAR(50) NOT NULL DEFAULT 'ORANGE_ALERT',
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    triggers JSONB NOT NULL DEFAULT '[]',
+    metrics_snapshot JSONB NOT NULL DEFAULT '{}',
+    recommended_actions JSONB NOT NULL DEFAULT '[]',
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'ACKNOWLEDGED', 'RESOLVED', 'EXPIRED', 'SUPERSEDED'
+    triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    valid_until TIMESTAMPTZ NOT NULL,
+    cooldown_until TIMESTAMPTZ,
+    suppression_count INTEGER NOT NULL DEFAULT 0,
+    acknowledged_at TIMESTAMPTZ,
+    acknowledged_by VARCHAR(150),
+    acknowledgment_notes TEXT,
+    resolved_at TIMESTAMPTZ,
+    resolved_by VARCHAR(150),
+    resolution_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_status_severity ON early_warning_alerts (status, severity);
+CREATE INDEX IF NOT EXISTS idx_alerts_triggered_at ON early_warning_alerts (triggered_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alerts_location ON early_warning_alerts (location_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_state_basin ON early_warning_alerts (state, basin);
+
+

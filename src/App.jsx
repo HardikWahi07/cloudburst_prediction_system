@@ -18,6 +18,7 @@ import HourlyForecast from "./components/HourlyForecast";
 import MeteorologicalChart from "./components/MeteorologicalChart";
 import ParameterAnalyzer from "./components/ParameterAnalyzer";
 import WorldRiskMap from "./components/WorldRiskMap";
+import EarlyWarningAlertCenter from "./components/EarlyWarningAlertCenter";
 
 const CITY_STORAGE_KEY = "cloudburst.selectedCity";
 const THEME_STORAGE_KEY = "cloudburst.theme";
@@ -960,6 +961,11 @@ function App() {
           onSelectCity={selectCity}
           liveWeather={weather}
           theme={theme}
+        />
+
+        <EarlyWarningAlertCenter
+          activeLocation={activeLocation}
+          weather={weather}
         />
 
         {weather && (

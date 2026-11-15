@@ -9,6 +9,7 @@ import {
 } from "./meteorology.normalizer.js";
 import { evaluateProbabilisticRisk } from "./probabilisticRisk.service.js";
 import { resilientFetchJson, weatherCache } from "./resilientFetch.js";
+import { evaluateLocationAlert } from "./alertEngine.service.js";
 
 const getMeasurement = (value, min, max = Infinity) =>
   Number.isFinite(value) && value >= min && value <= max ? value : null;
@@ -249,9 +250,33 @@ const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null, 
     },
   };
 
+  const risk = getRisk(weather.current, weather.hourly, options);
+  const locationMeta = {
+    id: options.locationId || options.id || `loc-${Number(latitude).toFixed(2)}-${Number(longitude).toFixed(2)}`,
+    name: options.name || options.locationName || `Monitoring Station (${Number(latitude).toFixed(2)}, ${Number(longitude).toFixed(2)})`,
+    state: options.state || options.region || "Indian Himalayan Region",
+    district: options.district || options.state,
+    latitude,
+    longitude,
+    elevationM: current.elevation ?? null,
+    basin: options.basin || "Regional Catchment Basin",
+    powerAsset: options.powerAsset || "Hydropower Grid",
+  };
+
+  const earlyWarningAlert = evaluateLocationAlert(locationMeta, {
+    rainRate: weather.current.rain,
+    rainAccum3h: risk.peakRain3h,
+    pressureDrop3h: risk.pressureDrop3h,
+    cape: risk.peakCape,
+    humidity: weather.current.humidity,
+    dewPointSpread: risk.dewPointSpread,
+    probabilisticScore: risk.probability,
+  }, options);
+
   return {
     ...weather,
-    risk: getRisk(weather.current, weather.hourly, options),
+    risk,
+    earlyWarningAlert,
     summary: getForecastSummary(weather.current, weather.hourly),
   };
 };

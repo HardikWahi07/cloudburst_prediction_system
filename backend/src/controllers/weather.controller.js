@@ -64,6 +64,11 @@ export const getWeather = async (req, res) => {
       forceRefresh,
       thresholdProfile,
       customThresholds,
+      name: req.query.name || req.query.location,
+      state: req.query.state || req.query.region,
+      basin: req.query.basin,
+      locationId: req.query.locationId || req.query.id,
+      powerAsset: req.query.powerAsset,
     });
 
     return res.status(200).json({

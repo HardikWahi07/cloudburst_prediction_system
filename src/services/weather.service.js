@@ -138,3 +138,77 @@ export const predictCloudburstML = async (observation, signal) => {
     throw new Error("Failed to evaluate cloudburst prediction", { cause: error });
   }
 };
+
+// Early-Warning and Alert Engine Services
+export const getAlerts = ({ status = "active", severity, state, basin, limit = 50 } = {}, signal) => {
+  const params = new URLSearchParams({ status });
+  if (severity) params.set("severity", severity);
+  if (state) params.set("state", state);
+  if (basin) params.set("basin", basin);
+  if (limit) params.set("limit", String(limit));
+
+  return requestJson(`/api/alerts?${params}`, signal, "Failed to fetch early-warning alerts");
+};
+
+export const getAlertSummary = (signal) =>
+  requestJson("/api/alerts/summary", signal, "Failed to fetch alert summary statistics");
+
+export const getAlertRules = (signal) =>
+  requestJson("/api/alerts/rules", signal, "Failed to fetch alert rules");
+
+export const updateAlertRules = async (rules, signal) => {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  const response = await fetch(`${API_URL}/api/alerts/rules`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rules),
+    signal: requestSignal,
+  });
+  if (!response.ok) throw new Error("Failed to update alert rules");
+  return await response.json();
+};
+
+export const evaluateAlerts = async (payload, signal) => {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  const response = await fetch(`${API_URL}/api/alerts/evaluate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: requestSignal,
+  });
+  if (!response.ok) throw new Error("Failed to evaluate alert telemetry");
+  return await response.json();
+};
+
+export const acknowledgeAlert = async (id, { acknowledgedBy, notes } = {}, signal) => {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  const response = await fetch(`${API_URL}/api/alerts/${id}/acknowledge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ acknowledgedBy, notes }),
+    signal: requestSignal,
+  });
+  if (!response.ok) throw new Error("Failed to acknowledge alert");
+  return await response.json();
+};
+
+export const resolveAlert = async (id, { resolvedBy, reason } = {}, signal) => {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  const response = await fetch(`${API_URL}/api/alerts/${id}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resolvedBy, reason }),
+    signal: requestSignal,
+  });
+  if (!response.ok) throw new Error("Failed to resolve alert");
+  return await response.json();
+};
+
