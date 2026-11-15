@@ -20,3 +20,4 @@ router.get("/:id", getLocationById);
 router.get("/", getLocations);
 
 export default router;
+

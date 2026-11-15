@@ -82,3 +82,4 @@ export const getHimalayanLocationById = (id, signal) =>
  */
 export const getHimalayanDbStatus = (signal) =>
   requestJson("/api/locations/himalayan/status", signal, "Failed to fetch database status");
+

@@ -212,3 +212,4 @@ export const getDbStatus = async (_req, res) => {
     res.status(500).json({ success: false, message: "Failed to retrieve database status" });
   }
 };
+

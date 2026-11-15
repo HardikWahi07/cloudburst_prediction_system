@@ -361,3 +361,4 @@ export async function getHimalayanLocations(filters = {}) {
     })
     .sort((a, b) => b.elevation_m - a.elevation_m);
 }
+
