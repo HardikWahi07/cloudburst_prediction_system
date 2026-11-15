@@ -258,55 +258,71 @@ export const getWeatherData = async (latitude, longitude) => {
 export const getBatchWeatherData = async (locations) => {
   if (!Array.isArray(locations) || locations.length === 0) return [];
 
-  const targets = locations.slice(0, 60);
-  const lats = targets.map((l) => Number(l.latitude).toFixed(4)).join(",");
-  const lons = targets.map((l) => Number(l.longitude).toFixed(4)).join(",");
-
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.search = new URLSearchParams({
-    latitude: lats,
-    longitude: lons,
-    current:
-      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,rain,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m",
-    hourly:
-      "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,precipitation_probability,pressure_msl,cloud_cover,wind_speed_10m,cape",
-    forecast_days: "2",
-    timezone: "auto",
-  }).toString();
-
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Weather API batch error: ${response.status}`);
+  // Support up to 350 world stations in parallel chunked queries
+  const targets = locations.slice(0, 350);
+  const CHUNK_SIZE = 50;
+  const chunks = [];
+  for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
+    chunks.push(targets.slice(i, i + CHUNK_SIZE));
   }
 
-  const raw = await response.json();
-  const dataList = Array.isArray(raw) ? raw : [raw];
+  const chunkPromises = chunks.map(async (chunk) => {
+    try {
+      const lats = chunk.map((l) => Number(l.latitude).toFixed(4)).join(",");
+      const lons = chunk.map((l) => Number(l.longitude).toFixed(4)).join(",");
 
-  return targets
-    .map((loc, idx) => {
-      const item = dataList[idx];
-      if (!item) return null;
-      try {
-        const weather = formatSingleWeather(item, loc.latitude, loc.longitude);
-        return {
-          id: loc.id || `city-${idx}`,
-          name: loc.name,
-          state: loc.state,
-          country: loc.country,
-          countryCode: loc.countryCode,
-          elevationM: loc.elevationM,
-          basin: loc.basin,
-          powerAsset: loc.powerAsset,
-          metAgency: loc.metAgency,
-          population: loc.population,
-          ...weather,
-        };
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
+      const url = new URL("https://api.open-meteo.com/v1/forecast");
+      url.search = new URLSearchParams({
+        latitude: lats,
+        longitude: lons,
+        current:
+          "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,rain,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m",
+        hourly:
+          "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,precipitation_probability,pressure_msl,cloud_cover,wind_speed_10m,cape",
+        forecast_days: "2",
+        timezone: "auto",
+      }).toString();
+
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!response.ok) return [];
+
+      const raw = await response.json();
+      const dataList = Array.isArray(raw) ? raw : [raw];
+
+      return chunk
+        .map((loc, idx) => {
+          const item = dataList[idx];
+          if (!item) return null;
+          try {
+            const weather = formatSingleWeather(item, loc.latitude, loc.longitude);
+            return {
+              id: loc.id || `city-${loc.name}-${loc.latitude}`,
+              name: loc.name,
+              state: loc.state,
+              country: loc.country,
+              countryCode: loc.countryCode,
+              elevationM: loc.elevationM,
+              basin: loc.basin,
+              powerAsset: loc.powerAsset,
+              metAgency: loc.metAgency,
+              population: loc.population,
+              ...weather,
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  });
+
+  const results = await Promise.allSettled(chunkPromises);
+  return results
+    .filter((r) => r.status === "fulfilled" && Array.isArray(r.value))
+    .flatMap((r) => r.value);
 };

@@ -1,4 +1,10 @@
 import allCities from "all-the-cities";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const priorityStations = [
   {
@@ -378,9 +384,23 @@ export const searchLocations = async (req, res) => {
   });
 };
 
+let cachedRiskStations = null;
+
 export const getRiskMapStations = (_req, res) => {
+  if (!cachedRiskStations) {
+    try {
+      const jsonPath = path.resolve(__dirname, "../data/worldStations.json");
+      if (fs.existsSync(jsonPath)) {
+        cachedRiskStations = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      }
+    } catch {
+      cachedRiskStations = priorityStations;
+    }
+  }
+
   res.json({
     updatedAt: new Date().toISOString(),
-    stations: priorityStations,
+    total: (cachedRiskStations || priorityStations).length,
+    stations: cachedRiskStations || priorityStations,
   });
 };

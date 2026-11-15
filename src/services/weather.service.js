@@ -21,6 +21,9 @@ async function requestJson(path, signal, failureMessage) {
 export const getLocations = (signal) =>
   requestJson("/api/locations", signal, "Failed to fetch priority monitoring stations");
 
+export const getRiskMapStations = (signal) =>
+  requestJson("/api/locations/risk-map", signal, "Failed to fetch risk map stations");
+
 export const getCountries = (signal) =>
   requestJson("/api/locations/countries", signal, "Failed to fetch world country directory");
 

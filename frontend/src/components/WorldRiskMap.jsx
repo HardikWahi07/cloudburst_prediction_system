@@ -10,784 +10,16 @@ import {
   Maximize2,
   Minimize2,
   OctagonAlert,
+  PlusCircle,
+  Search,
   ShieldCheck,
+  X,
   Zap,
 } from "lucide-react";
-import { getBatchWeather } from "../services/weather.service";
+import { getBatchWeather, searchLocations } from "../services/weather.service";
+import { CLOUDBURST_GLOBAL_STATIONS } from "../data/worldStations.js";
 
-// Global database of major cloudburst-vulnerable mountainous regions, hydropower nodes,
-// and steep orographic catchment basins across the world.
-export const CLOUDBURST_GLOBAL_STATIONS = [
-  // --- Indian Himalayan Region (IHR) & Karakoram ---
-  {
-    id: "ihr-kedarnath",
-    name: "Kedarnath & Upper Mandakini",
-    region: "Uttarakhand",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Mandakini Gorge & Chorabari Basin",
-    elevationM: 3583,
-    latitude: 30.7346,
-    longitude: 79.0669,
-    riskLevel: "High",
-    riskScore: 92,
-    rainfallRateMmH: 114.5,
-    capeJkg: 2450,
-    pressureDrop3h: 3.8,
-    hazardType: "Catastrophic Orographic Deluge & Glacial Lake Breach Risk",
-    powerAsset: "Singoli-Bhatwari & Mandakini Hydro Corridors",
-    metAgency: "IMD Dehradun · High Altitude Telemetry Node",
-    advisory: "Red Alert: Upstream evacuation protocol; stage emergency reservoir release.",
-  },
-  {
-    id: "ihr-joshimath",
-    name: "Joshimath",
-    region: "Uttarakhand",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Alaknanda Basin",
-    elevationM: 1890,
-    latitude: 30.5506,
-    longitude: 79.5658,
-    riskLevel: "High",
-    riskScore: 88,
-    rainfallRateMmH: 102.0,
-    capeJkg: 2180,
-    pressureDrop3h: 3.1,
-    hazardType: "Narrow Canyon Orographic Funneling & Landslide Damming",
-    powerAsset: "Tapovan-Vishnugad & Vishnuprayag Hydro Complexes",
-    metAgency: "IMD Dehradun · Chamoli Telemetry Node",
-    advisory: "Red Alert: Inspect silt gates and notify downstream intake tunnels.",
-  },
-  {
-    id: "ihr-dehradun",
-    name: "Dehradun",
-    region: "Uttarakhand",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Ganga-Yamuna Foothills",
-    elevationM: 640,
-    latitude: 30.3165,
-    longitude: 78.0322,
-    riskLevel: "Watch",
-    riskScore: 54,
-    rainfallRateMmH: 42.0,
-    capeJkg: 1350,
-    pressureDrop3h: 1.8,
-    hazardType: "Foothill Cloudburst & Flash River Surges",
-    powerAsset: "Lakhwar-Vyasi Hydro Complex & Regional Grid",
-    metAgency: "IMD Meteorological Centre Dehradun",
-    advisory: "Watch: Silt monitoring active; maintain 3-hour telemetry bulletins.",
-  },
-  {
-    id: "ihr-tehri",
-    name: "Tehri",
-    region: "Uttarakhand",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Bhagirathi Basin",
-    elevationM: 1750,
-    latitude: 30.3772,
-    longitude: 78.4803,
-    riskLevel: "Watch",
-    riskScore: 48,
-    rainfallRateMmH: 36.5,
-    capeJkg: 1100,
-    pressureDrop3h: 1.4,
-    hazardType: "Reservoir Inflow Surges & Silt Accumulation",
-    powerAsset: "Tehri Dam & Pumped Storage Plant (2,400 MW)",
-    metAgency: "IMD Dehradun · Tehri Reservoir Observatory",
-    advisory: "Watch: Monitor Bhagirathi intake inflow trends and headpond level.",
-  },
-  {
-    id: "ihr-rudraprayag",
-    name: "Rudraprayag",
-    region: "Uttarakhand",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Mandakini-Alaknanda Confluence",
-    elevationM: 895,
-    latitude: 30.2844,
-    longitude: 78.9811,
-    riskLevel: "High",
-    riskScore: 86,
-    rainfallRateMmH: 98.0,
-    capeJkg: 2200,
-    pressureDrop3h: 2.9,
-    hazardType: "Confluence Backwater Surge & Sudden Flash Floods",
-    powerAsset: "Srinagar & Singoli-Bhatwari Hydro Stations",
-    metAgency: "IMD Dehradun · Mandakini Valley Station",
-    advisory: "Red Alert: Pre-alert downstream Srinagar Hydro dam control room.",
-  },
-  {
-    id: "ihr-manali",
-    name: "Manali & Solang",
-    region: "Himachal Pradesh",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Upper Beas Basin",
-    elevationM: 2050,
-    latitude: 32.2396,
-    longitude: 77.1887,
-    riskLevel: "High",
-    riskScore: 89,
-    rainfallRateMmH: 108.0,
-    capeJkg: 2310,
-    pressureDrop3h: 3.4,
-    hazardType: "Valley Cloudburst, Torrential Runoff & Riverbank Scour",
-    powerAsset: "Parbati-II & Larji Hydroelectric Corridor",
-    metAgency: "IMD Shimla · Kullu Node",
-    advisory: "Red Alert: Flash flood alarm along Beas gorge; restrict riverside access.",
-  },
-  {
-    id: "ihr-shimla",
-    name: "Shimla",
-    region: "Himachal Pradesh",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Sutlej Basin",
-    elevationM: 2205,
-    latitude: 31.1048,
-    longitude: 77.1734,
-    riskLevel: "Watch",
-    riskScore: 45,
-    rainfallRateMmH: 32.0,
-    capeJkg: 980,
-    pressureDrop3h: 1.2,
-    hazardType: "Steep Ridge Slope Saturation & Drainage Overflows",
-    powerAsset: "Nathpa Jhakri (1,500 MW) & Rampur Hydro Grid",
-    metAgency: "IMD Meteorological Centre Shimla",
-    advisory: "Watch: Municipal stormwater clearing and slope stabilization watch.",
-  },
-  {
-    id: "ihr-dharamshala",
-    name: "Dharamshala",
-    region: "Himachal Pradesh",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Kangra Valley · Dhauladhar Slopes",
-    elevationM: 1457,
-    latitude: 32.219,
-    longitude: 76.3234,
-    riskLevel: "High",
-    riskScore: 84,
-    rainfallRateMmH: 94.0,
-    capeJkg: 2050,
-    pressureDrop3h: 2.7,
-    hazardType: "Extreme Dhauladhar Orographic Cloudburst Wall",
-    powerAsset: "Gaj & Pong Dam Hydrological Network",
-    metAgency: "IMD Shimla · Kangra Telemetry",
-    advisory: "Red Alert: High probability of localized cloudburst in foothill rivulets.",
-  },
-  {
-    id: "ihr-leh",
-    name: "Leh",
-    region: "Ladakh",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Upper Indus Basin",
-    elevationM: 3500,
-    latitude: 34.1526,
-    longitude: 77.5771,
-    riskLevel: "High",
-    riskScore: 82,
-    rainfallRateMmH: 78.0,
-    capeJkg: 1750,
-    pressureDrop3h: 2.6,
-    hazardType: "Cold Desert Cloudburst & Torrential Mud Debris Flows",
-    powerAsset: "Nimoo Bazgo & Chutak Hydroelectric Stations",
-    metAgency: "IMD Meteorological Centre Leh",
-    advisory: "Red Alert: Dry alluvial gullies at extreme risk of hyper-concentrated mud flows.",
-  },
-  {
-    id: "ihr-gangtok",
-    name: "Gangtok",
-    region: "Sikkim",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Teesta Basin",
-    elevationM: 1650,
-    latitude: 27.3314,
-    longitude: 88.6138,
-    riskLevel: "Low",
-    riskScore: 16,
-    rainfallRateMmH: 0.0,
-    capeJkg: 85,
-    pressureDrop3h: 0.3,
-    hazardType: "Teesta Gorge Orographic Funneling (Monitored Hydro Asset)",
-    powerAsset: "Teesta-V (510 MW) & Teesta Stage-III Cascade",
-    metAgency: "IMD Meteorological Centre Gangtok",
-    advisory: "Normal: Standard generation schedules and routine 3-hour bulletin logging.",
-  },
-  {
-    id: "ihr-roing",
-    name: "Roing",
-    region: "Arunachal Pradesh",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Dibang-Brahmaputra Basin",
-    elevationM: 390,
-    latitude: 28.1411,
-    longitude: 95.8355,
-    riskLevel: "Watch",
-    riskScore: 52,
-    rainfallRateMmH: 45.0,
-    capeJkg: 1400,
-    pressureDrop3h: 1.6,
-    hazardType: "Eastern Himalayan Cloudburst & Mountain Washouts",
-    powerAsset: "Lower Dibang Valley & Subansiri Hydro Corridor",
-    metAgency: "IMD Meteorological Centre Itanagar",
-    advisory: "Watch: Monitor mountain tributary stages and bridge abutments.",
-  },
-  {
-    id: "ihr-cherrapunji",
-    name: "Cherrapunji & Mawsynram",
-    region: "Meghalaya",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Khasi Hills · Bay of Bengal Inflow",
-    elevationM: 1484,
-    latitude: 25.2986,
-    longitude: 91.7337,
-    riskLevel: "High",
-    riskScore: 95,
-    rainfallRateMmH: 130.0,
-    capeJkg: 2800,
-    pressureDrop3h: 4.2,
-    hazardType: "Global Record Orographic Cloudburst Funnel",
-    powerAsset: "Umiam Hydro Cascade & Regional Grid",
-    metAgency: "IMD Regional Met Centre Guwahati",
-    advisory: "Red Alert: Extreme intense precipitation cloudburst threshold breached.",
-  },
-  {
-    id: "ihr-wayanad",
-    name: "Wayanad & Meppadi",
-    region: "Kerala",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Western Ghats · Chaliyar Catchment",
-    elevationM: 900,
-    latitude: 11.6854,
-    longitude: 76.132,
-    riskLevel: "High",
-    riskScore: 90,
-    rainfallRateMmH: 106.0,
-    capeJkg: 2350,
-    pressureDrop3h: 3.2,
-    hazardType: "Western Ghats Cloudburst, Multi-Tier Landslides & Debris Flow",
-    powerAsset: "Banasura Sagar Dam & Malabar Hydro Corridor",
-    metAgency: "IMD Thiruvananthapuram · Wayanad Observatory",
-    advisory: "Red Alert: Evacuate tea estate valleys; flood surge in Chaliyar tributary.",
-  },
-  {
-    id: "ihr-mahabaleshwar",
-    name: "Mahabaleshwar",
-    region: "Maharashtra",
-    country: "India",
-    countryCode: "IN",
-    continent: "Asia",
-    basin: "Western Ghats Escarpment · Krishna Basin",
-    elevationM: 1353,
-    latitude: 17.9237,
-    longitude: 73.6586,
-    riskLevel: "High",
-    riskScore: 85,
-    rainfallRateMmH: 96.0,
-    capeJkg: 2100,
-    pressureDrop3h: 2.8,
-    hazardType: "Monsoon Windward Cloudburst & Koyna Catchment Inflows",
-    powerAsset: "Koyna Hydroelectric Project (1,960 MW)",
-    metAgency: "IMD Pune · Mahabaleshwar High Altitude Lab",
-    advisory: "Red Alert: Koyna reservoir spillway pre-discharge coordination active.",
-  },
-
-  // --- Nepal, Karakoram & South Asia ---
-  {
-    id: "nepal-pokhara",
-    name: "Pokhara & Annapurna Foothills",
-    region: "Gandaki",
-    country: "Nepal",
-    countryCode: "NP",
-    continent: "Asia",
-    basin: "Seti River Gorge & Kali Gandaki",
-    elevationM: 822,
-    latitude: 28.2096,
-    longitude: 83.9856,
-    riskLevel: "High",
-    riskScore: 87,
-    rainfallRateMmH: 104.0,
-    capeJkg: 2280,
-    pressureDrop3h: 3.1,
-    hazardType: "Annapurna Orographic Cloudburst & Seti Flash Flood",
-    powerAsset: "Middle Marsyangdi & Kaligandaki 'A' Hydro",
-    metAgency: "Department of Hydrology & Meteorology Nepal",
-    advisory: "Red Alert: Rapid rise in Seti river gorge; low-lying settlements alert.",
-  },
-  {
-    id: "pak-gilgit",
-    name: "Gilgit & Hunza Valley",
-    region: "Gilgit-Baltistan",
-    country: "Pakistan",
-    countryCode: "PK",
-    continent: "Asia",
-    basin: "Hunza-Gilgit-Indus Confluence",
-    elevationM: 1500,
-    latitude: 35.9221,
-    longitude: 74.3087,
-    riskLevel: "High",
-    riskScore: 83,
-    rainfallRateMmH: 80.0,
-    capeJkg: 1800,
-    pressureDrop3h: 2.7,
-    hazardType: "Karakoram Glacial Stream Cloudburst & GLOF",
-    powerAsset: "Diamer-Bhasha Hydropower Dam Corridor",
-    metAgency: "Pakistan Meteorological Department",
-    advisory: "Red Alert: High risk of sudden mountain washouts and debris surges.",
-  },
-
-  // --- European Alpine Convective Arc ---
-  {
-    id: "eu-innsbruck",
-    name: "Innsbruck & Tyrolean Alps",
-    region: "Tyrol",
-    country: "Austria",
-    countryCode: "AT",
-    continent: "Europe",
-    basin: "Inn Valley Catchment",
-    elevationM: 574,
-    latitude: 47.2692,
-    longitude: 11.4041,
-    riskLevel: "Watch",
-    riskScore: 56,
-    rainfallRateMmH: 48.0,
-    capeJkg: 1550,
-    pressureDrop3h: 2.1,
-    hazardType: "Alpine Valley Convective Storm & Flash Inundation",
-    powerAsset: "Tyrol Alpine Pumped Hydro Storage Network",
-    metAgency: "GeoSphere Austria (ZAMG)",
-    advisory: "Watch: Silt trapping in mountain streams; localized flash flood alerts.",
-  },
-  {
-    id: "eu-chamonix",
-    name: "Chamonix & Mont Blanc",
-    region: "Haute-Savoie",
-    country: "France",
-    countryCode: "FR",
-    continent: "Europe",
-    basin: "Arve Alpine Valley",
-    elevationM: 1035,
-    latitude: 45.9237,
-    longitude: 6.8694,
-    riskLevel: "High",
-    riskScore: 78,
-    rainfallRateMmH: 74.0,
-    capeJkg: 1900,
-    pressureDrop3h: 2.4,
-    hazardType: "High Alpine Convective Cloudburst & Glacial Torrent Swells",
-    powerAsset: "Électricité de France Alpine Hydro Network",
-    metAgency: "Météo-France Chamonix Node",
-    advisory: "Red Alert: Torrent des Bossons and Arve valley flash flood watch.",
-  },
-  {
-    id: "eu-bergamo",
-    name: "Bergamo & Orobie Alps",
-    region: "Lombardy",
-    country: "Italy",
-    countryCode: "IT",
-    continent: "Europe",
-    basin: "Brembo & Serio Basins",
-    elevationM: 249,
-    latitude: 45.6983,
-    longitude: 9.6773,
-    riskLevel: "High",
-    riskScore: 81,
-    rainfallRateMmH: 86.0,
-    capeJkg: 2150,
-    pressureDrop3h: 2.9,
-    hazardType: "Pre-Alpine Supercell Cloudburst & Severe Hailstorm",
-    powerAsset: "Enel Hydroelectric Stations · Po Valley Grid",
-    metAgency: "Aeronautica Militare Servizio Meteorologico",
-    advisory: "Red Alert: High-velocity runoff in Serio gorge; pre-flood civil protection alert.",
-  },
-  {
-    id: "eu-zermatt",
-    name: "Zermatt & Mattertal",
-    region: "Valais",
-    country: "Switzerland",
-    countryCode: "CH",
-    continent: "Europe",
-    basin: "Vispa-Rhone Alpine Catchment",
-    elevationM: 1608,
-    latitude: 45.9765,
-    longitude: 7.7491,
-    riskLevel: "Watch",
-    riskScore: 50,
-    rainfallRateMmH: 38.0,
-    capeJkg: 1200,
-    pressureDrop3h: 1.5,
-    hazardType: "Alpine Glacier Runoff Surge & Steep Debris Funnels",
-    powerAsset: "Grande Dixence Hydro Complex (2,000 MW)",
-    metAgency: "MeteoSwiss Alpine Station",
-    advisory: "Watch: Continuous telemetry check on Vispa torrent weirs.",
-  },
-
-  // --- Americas (Rockies, Appalachians, Andes) ---
-  {
-    id: "us-boulder",
-    name: "Boulder & Front Range Canyons",
-    region: "Colorado",
-    country: "United States",
-    countryCode: "US",
-    continent: "North America",
-    basin: "South Platte · Boulder Creek Gorge",
-    elevationM: 1655,
-    latitude: 40.015,
-    longitude: -105.2705,
-    riskLevel: "High",
-    riskScore: 84,
-    rainfallRateMmH: 92.0,
-    capeJkg: 2300,
-    pressureDrop3h: 3.0,
-    hazardType: "Rocky Mountain Front Range Flash Flood & Canyon Trapping",
-    powerAsset: "Western Area Power Grid & Hydro Reservoirs",
-    metAgency: "NOAA National Weather Service Boulder",
-    advisory: "Red Alert: Extreme canyon flash flood risk; immediate canyon road closures.",
-  },
-  {
-    id: "us-asheville",
-    name: "Asheville & Blue Ridge",
-    region: "North Carolina",
-    country: "United States",
-    countryCode: "US",
-    continent: "North America",
-    basin: "French Broad & Swannanoa Basins",
-    elevationM: 650,
-    latitude: 35.5951,
-    longitude: -82.5515,
-    riskLevel: "High",
-    riskScore: 89,
-    rainfallRateMmH: 105.0,
-    capeJkg: 2400,
-    pressureDrop3h: 3.6,
-    hazardType: "Appalachian Orographic Deluge & Mountain River Cresting",
-    powerAsset: "Duke Energy Mountain Hydro & Grid Distribution",
-    metAgency: "NOAA NWS Greenville-Spartanburg",
-    advisory: "Red Alert: Catastrophic inundation threshold along French Broad river.",
-  },
-  {
-    id: "us-rapid-city",
-    name: "Rapid City & Black Hills",
-    region: "South Dakota",
-    country: "United States",
-    countryCode: "US",
-    continent: "North America",
-    basin: "Rapid Creek Basin",
-    elevationM: 976,
-    latitude: 44.0805,
-    longitude: -103.231,
-    riskLevel: "Watch",
-    riskScore: 47,
-    rainfallRateMmH: 35.0,
-    capeJkg: 1450,
-    pressureDrop3h: 1.7,
-    hazardType: "Isolated Orographic Convective Supercell Flash Flood",
-    powerAsset: "Pactola Reservoir & Black Hills Power Co",
-    metAgency: "NOAA NWS Rapid City",
-    advisory: "Watch: Pactola reservoir spillway standby and creek stage logging.",
-  },
-  {
-    id: "sa-medellin",
-    name: "Medellín & Aburrá Valley",
-    region: "Antioquia",
-    country: "Colombia",
-    countryCode: "CO",
-    continent: "South America",
-    basin: "Medellín River & Andes Slopes",
-    elevationM: 1495,
-    latitude: 6.2442,
-    longitude: -75.5812,
-    riskLevel: "High",
-    riskScore: 86,
-    rainfallRateMmH: 98.0,
-    capeJkg: 2250,
-    pressureDrop3h: 2.8,
-    hazardType: "Tropical Mountain Valley Convective Downpours & Mudslides",
-    powerAsset: "EPM Empresas Públicas Hydro & Transmission Grid",
-    metAgency: "IDEAM Colombia · SIATA Early Warning System",
-    advisory: "Red Alert: Sirens active on steep eastern hillside drainage channels.",
-  },
-  {
-    id: "sa-huaraz",
-    name: "Huaraz & Cordillera Blanca",
-    region: "Ancash",
-    country: "Peru",
-    countryCode: "PE",
-    continent: "South America",
-    basin: "Santa River Valley",
-    elevationM: 3052,
-    latitude: -9.5278,
-    longitude: -77.5278,
-    riskLevel: "High",
-    riskScore: 80,
-    rainfallRateMmH: 72.0,
-    capeJkg: 1600,
-    pressureDrop3h: 2.3,
-    hazardType: "High Andes Cloudburst, Debris Avalanches (Aluviones)",
-    powerAsset: "Cañón del Pato Hydroelectric Plant (263 MW)",
-    metAgency: "SENAMHI Peru · Glaciology Unit",
-    advisory: "Red Alert: Upstream glacial lagoon outflow sensors triggered.",
-  },
-  {
-    id: "sa-quito",
-    name: "Quito & Pichincha Slopes",
-    region: "Pichincha",
-    country: "Ecuador",
-    countryCode: "EC",
-    continent: "South America",
-    basin: "Guayllabamba & Machángara Basins",
-    elevationM: 2850,
-    latitude: -0.1807,
-    longitude: -78.4678,
-    riskLevel: "Watch",
-    riskScore: 53,
-    rainfallRateMmH: 40.0,
-    capeJkg: 1300,
-    pressureDrop3h: 1.5,
-    hazardType: "Equatorial High Altitude Convective Downpour",
-    powerAsset: "Coca Codo Sinclair Regional Feeder Grid",
-    metAgency: "INAMHI Ecuador",
-    advisory: "Watch: Slope mud containment basins monitored at La Gasca.",
-  },
-
-  // --- East Asia & Pacific ---
-  {
-    id: "ea-zhengzhou",
-    name: "Zhengzhou & Taihang Foothills",
-    region: "Henan",
-    country: "China",
-    countryCode: "CN",
-    continent: "Asia",
-    basin: "Yellow River Tributaries",
-    elevationM: 108,
-    latitude: 34.7466,
-    longitude: 113.6253,
-    riskLevel: "High",
-    riskScore: 94,
-    rainfallRateMmH: 125.0,
-    capeJkg: 2750,
-    pressureDrop3h: 4.0,
-    hazardType: "Meso-Scale Convective Vortex & Catastrophic Inundation",
-    powerAsset: "State Grid Henan & Yellow River Dams",
-    metAgency: "China Meteorological Administration (CMA)",
-    advisory: "Red Alert: Maximum flood containment protocol; underground transit halts.",
-  },
-  {
-    id: "ea-hiroshima",
-    name: "Hiroshima & Chugoku Mountains",
-    region: "Chugoku",
-    country: "Japan",
-    countryCode: "JP",
-    continent: "Asia",
-    basin: "Ota River Valley",
-    elevationM: 30,
-    latitude: 34.3853,
-    longitude: 132.4553,
-    riskLevel: "High",
-    riskScore: 83,
-    rainfallRateMmH: 88.0,
-    capeJkg: 2100,
-    pressureDrop3h: 2.7,
-    hazardType: "Linear Precipitation Train (Senjo-Kousuitai) Cloudburst",
-    powerAsset: "Chugoku Electric Power Company Hydro Grid",
-    metAgency: "Japan Meteorological Agency (JMA) Hiroshima",
-    advisory: "Red Alert: Level 5 emergency warning for localized mountain slope washouts.",
-  },
-  {
-    id: "ea-taipei",
-    name: "Taipei & Yangmingshan Slopes",
-    region: "Northern Taiwan",
-    country: "Taiwan",
-    countryCode: "TW",
-    continent: "Asia",
-    basin: "Tamsui & Keelung River Basins",
-    elevationM: 25,
-    latitude: 25.033,
-    longitude: 121.5654,
-    riskLevel: "Watch",
-    riskScore: 58,
-    rainfallRateMmH: 52.0,
-    capeJkg: 1650,
-    pressureDrop3h: 2.0,
-    hazardType: "Typhoon Spiral Band & Orographic Rain Trapping",
-    powerAsset: "Feitsui Dam & Taipower Hydro Transmission",
-    metAgency: "Central Weather Administration (CWA) Taiwan",
-    advisory: "Watch: Feitsui reservoir automated gate management active.",
-  },
-  {
-    id: "ea-baguio",
-    name: "Baguio & Cordillera Central",
-    region: "Benguet",
-    country: "Philippines",
-    countryCode: "PH",
-    continent: "Asia",
-    basin: "Amburayan & Agno River Basins",
-    elevationM: 1470,
-    latitude: 16.4023,
-    longitude: 120.596,
-    riskLevel: "High",
-    riskScore: 90,
-    rainfallRateMmH: 108.0,
-    capeJkg: 2500,
-    pressureDrop3h: 3.3,
-    hazardType: "World-Record Monsoon Tropical Mountain Cloudbursts",
-    powerAsset: "Ambuklao & Binga Hydro Complexes",
-    metAgency: "PAGASA Baguio Synoptic Station",
-    advisory: "Red Alert: Kennon & Marcos mountain pass roads flagged for closures.",
-  },
-
-  // --- Middle East & Africa ---
-  {
-    id: "me-wadi-rum",
-    name: "Petra & Wadi Rum Canyons",
-    region: "Aqaba",
-    country: "Jordan",
-    countryCode: "JO",
-    continent: "Asia",
-    basin: "Wadi Musa & Dead Sea Drainage",
-    elevationM: 950,
-    latitude: 30.3285,
-    longitude: 35.4444,
-    riskLevel: "High",
-    riskScore: 82,
-    rainfallRateMmH: 68.0,
-    capeJkg: 1700,
-    pressureDrop3h: 2.5,
-    hazardType: "Desert Slotted-Canyon Sudden Cloudburst & Torrents",
-    powerAsset: "National Electric Power Company (NEPCO) Grid",
-    metAgency: "Jordan Meteorological Department",
-    advisory: "Red Alert: Complete evacuation of Siq canyon and dry river wadis.",
-  },
-  {
-    id: "af-nairobi",
-    name: "Rift Valley Escarpment",
-    region: "Nakuru / Naivasha",
-    country: "Kenya",
-    countryCode: "KE",
-    continent: "Africa",
-    basin: "Great Rift Valley Catchment",
-    elevationM: 1884,
-    latitude: -0.7172,
-    longitude: 36.431,
-    riskLevel: "Watch",
-    riskScore: 55,
-    rainfallRateMmH: 44.0,
-    capeJkg: 1500,
-    pressureDrop3h: 1.8,
-    hazardType: "Rift Valley Volcanic Silt Cloudbursts & Dam Failures",
-    powerAsset: "Olkaria Geothermal & KenGen Hydro Complex",
-    metAgency: "Kenya Meteorological Department",
-    advisory: "Watch: Saturated volcanic loam slopes under heavy runoff surveillance.",
-  },
-
-  // --- Baseline Low Risk Benchmark Stations ---
-  {
-    id: "base-reykjavik",
-    name: "Reykjavik",
-    region: "Capital Region",
-    country: "Iceland",
-    countryCode: "IS",
-    continent: "Europe",
-    basin: "Faxaflói Coastal Catchment",
-    elevationM: 15,
-    latitude: 64.1466,
-    longitude: -21.9426,
-    riskLevel: "Low",
-    riskScore: 12,
-    rainfallRateMmH: 2.1,
-    capeJkg: 40,
-    pressureDrop3h: 0.3,
-    hazardType: "Stable Maritime Climate · Negligible Convective Cloudburst Risk",
-    powerAsset: "Hellisheiði Geothermal & Landsvirkjun Grid",
-    metAgency: "Icelandic Meteorological Office",
-    advisory: "Normal: Standard meteorological monitoring.",
-  },
-  {
-    id: "base-cairo",
-    name: "Cairo",
-    region: "Nile Delta",
-    country: "Egypt",
-    countryCode: "EG",
-    continent: "Africa",
-    basin: "Lower Nile",
-    elevationM: 23,
-    latitude: 30.0444,
-    longitude: 31.2357,
-    riskLevel: "Low",
-    riskScore: 15,
-    rainfallRateMmH: 0.0,
-    capeJkg: 120,
-    pressureDrop3h: 0.4,
-    hazardType: "Arid Flatland Basin · Trace Precipitation",
-    powerAsset: "Aswan Transmission Corridor & New Administrative Grid",
-    metAgency: "Egyptian Meteorological Authority",
-    advisory: "Normal: Standard operations; routine bulletin logging.",
-  },
-  {
-    id: "base-singapore",
-    name: "Singapore Central",
-    region: "Central Area",
-    country: "Singapore",
-    countryCode: "SG",
-    continent: "Asia",
-    basin: "Marina Catchment",
-    elevationM: 15,
-    latitude: 1.3521,
-    longitude: 103.8198,
-    riskLevel: "Watch",
-    riskScore: 48,
-    rainfallRateMmH: 36.0,
-    capeJkg: 1800,
-    pressureDrop3h: 1.1,
-    hazardType: "High Tropical Convection with High-Capacity Pumping Drainage",
-    powerAsset: "SP Group Underground Substation Network",
-    metAgency: "Meteorological Service Singapore",
-    advisory: "Watch: Automated tidal barrage pump stations activated.",
-  },
-  {
-    id: "base-london",
-    name: "London",
-    region: "Greater London",
-    country: "United Kingdom",
-    countryCode: "GB",
-    continent: "Europe",
-    basin: "Thames Estuary",
-    elevationM: 25,
-    latitude: 51.5074,
-    longitude: -0.1278,
-    riskLevel: "Low",
-    riskScore: 18,
-    rainfallRateMmH: 3.5,
-    capeJkg: 150,
-    pressureDrop3h: 0.6,
-    hazardType: "Moderate Maritime Fronts · Thames Barrier Protected",
-    powerAsset: "National Grid ESO · London Ring Main",
-    metAgency: "UK Met Office",
-    advisory: "Normal: Routine river monitoring.",
-  },
-];
+export { CLOUDBURST_GLOBAL_STATIONS };
 
 // Major orographic cloudburst corridors across the globe
 const CLOUDBURST_CORRIDORS = [
@@ -798,43 +30,60 @@ const CLOUDBURST_CORRIDORS = [
     weight: 4,
     dashArray: "6, 6",
     coordinates: [
-      [34.15, 74.8], // Kashmir
+      [34.15, 74.80], // Srinagar
       [32.24, 77.19], // Manali
-      [31.1, 77.17], // Shimla
-      [30.55, 79.56], // Joshimath
-      [28.21, 83.98], // Pokhara, Nepal
-      [27.7, 85.32], // Kathmandu
-      [27.33, 88.61], // Gangtok, Sikkim
-      [25.3, 91.73], // Cherrapunji
-      [28.14, 95.84], // Roing, Arunachal
+      [31.10, 77.17], // Shimla
+      [30.73, 79.07], // Kedarnath
+      [30.55, 79.57], // Joshimath
+      [27.72, 85.32], // Kathmandu
+      [27.33, 88.61], // Gangtok
+      [27.59, 91.87], // Tawang
+      [28.14, 95.84], // Roing
     ],
   },
   {
-    name: "Western Ghats Monsoonal Escarpment",
-    description: "Steep windward mountain wall intercepting the Arabian Sea monsoon with sudden convective burst cells.",
-    color: "#ea580c", // Orange-Red
+    name: "Western Ghats Monsoonal Orographic Front",
+    description: "Steep coastal basalt scarp inducing sudden extreme monsoon rainfall (>5,000 mm/year) across Maharashtra, Karnataka, and Kerala.",
+    color: "#ea580c", // Amber-Orange
     weight: 3.5,
     dashArray: "4, 6",
     coordinates: [
-      [19.0, 73.5], // Western Maharashtra
+      [19.00, 73.30], // Matheran
+      [18.75, 73.41], // Lonavala
       [17.92, 73.66], // Mahabaleshwar
-      [14.5, 74.8], // Karnataka Ghats
-      [11.68, 76.13], // Wayanad, Kerala
-      [9.5, 77.0], // Idukki
+      [13.93, 75.57], // Agumbe
+      [12.42, 75.74], // Coorg
+      [11.56, 76.13], // Wayanad
+      [10.09, 77.06], // Munnar
+      [9.85, 76.98],  // Idukki
     ],
   },
   {
-    name: "Alpine Severe Convective Arc",
-    description: "European high alpine trench funneling warm Mediterranean air over glaciated mountain crests.",
-    color: "#d97706", // Amber
+    name: "European Alps Torrential Funnel (Chamonix - Innsbruck)",
+    description: "Steep glaciated valleys susceptible to sudden torrential downpours and glacial moraine debris flows.",
+    color: "#dc2626", // Red
     weight: 3,
     dashArray: "5, 5",
     coordinates: [
-      [45.92, 6.87], // Chamonix
-      [45.98, 7.75], // Zermatt
-      [45.7, 9.68], // Bergamo
-      [47.27, 11.4], // Innsbruck
-      [47.5, 13.0], // Salzburg Alps
+      [45.92, 6.87],  // Chamonix
+      [45.98, 7.75],  // Zermatt
+      [46.69, 7.86],  // Interlaken
+      [47.38, 8.54],  // Zurich
+      [47.27, 11.40], // Innsbruck
+      [47.81, 13.06], // Salzburg
+    ],
+  },
+  {
+    name: "Ligurian Sea - Apennines Escarpment (Genoa Flash Flood Alley)",
+    description: "V-shaped topography trapping moist Mediterranean air resulting in intense flash floods (Bisagno Basin).",
+    color: "#b91c1c", // Deep Red
+    weight: 3.5,
+    dashArray: "4, 4",
+    coordinates: [
+      [43.71, 7.26], // Nice
+      [44.41, 8.95], // Genoa
+      [44.11, 9.82], // Cinque Terre
+      [43.84, 10.51], // Lucca
     ],
   },
   {
@@ -849,6 +98,20 @@ const CLOUDBURST_CORRIDORS = [
       [40.01, -105.27], // Boulder Front Range
       [39.74, -104.99], // Denver Foothills
       [38.83, -104.82], // Colorado Springs
+    ],
+  },
+  {
+    name: "Andean Escarpment Aluvión Corridor",
+    description: "Steep Pacific slopes of the Andes generating violent mudflow and torrential cloudburst hazards.",
+    color: "#ea580c",
+    weight: 3,
+    dashArray: "5, 5",
+    coordinates: [
+      [4.71, -74.07],   // Bogota
+      [-0.18, -78.47],  // Quito
+      [-12.05, -77.04], // Lima
+      [-16.49, -68.12], // La Paz
+      [-33.45, -70.67], // Santiago
     ],
   },
 ];
@@ -878,58 +141,65 @@ export const KEYLESS_TILE_PROVIDERS = {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
     options: {
       attribution:
-        'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, USGS, NOAA',
-      maxZoom: 18,
+        '&copy; <a href="https://www.esri.com/">Esri</a> &copy; National Geographic',
+      maxZoom: 16,
     },
   },
   satellite: {
-    name: "Satellite Topo (Esri · Keyless)",
+    name: "Satellite Terrain (Esri · Keyless)",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
       attribution:
-        'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid',
-      maxZoom: 18,
+        '&copy; <a href="https://www.esri.com/">Esri</a>, DigitalGlobe, GeoEye, Earthstar Geographics',
+      maxZoom: 17,
     },
   },
 };
 
-export function isMatchingStation(st, activeCity) {
-  if (!st || !activeCity) return false;
-  // 1. Proximity check within ~35km (0.35 degrees)
+// Robust name normalizer that strips accents and punctuation
+function normalizeName(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Determines if a station matches target city by coordinates proximity or name
+function isMatchingStation(station, target) {
+  if (!station || !target) return false;
+
+  // 1. Exact or close coordinate match (< 35 km / 0.35 degrees)
   if (
-    Number.isFinite(activeCity.latitude) &&
-    Number.isFinite(activeCity.longitude) &&
-    Number.isFinite(st.latitude) &&
-    Number.isFinite(st.longitude)
+    Number.isFinite(station.latitude) &&
+    Number.isFinite(station.longitude) &&
+    Number.isFinite(target.latitude) &&
+    Number.isFinite(target.longitude)
   ) {
-    if (
-      Math.abs(st.latitude - activeCity.latitude) < 0.35 &&
-      Math.abs(st.longitude - activeCity.longitude) < 0.35
-    ) {
-      return true;
-    }
+    const latDiff = Math.abs(station.latitude - target.latitude);
+    const lonDiff = Math.abs(station.longitude - target.longitude);
+    if (latDiff < 0.35 && lonDiff < 0.35) return true;
   }
-  // 2. Name check with normalized accents (e.g. "Gāngtok" -> "gangtok")
-  const normA = (activeCity.name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-  const normB = (st.name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-  if (normA && normB && (normA.includes(normB) || normB.includes(normA))) {
-    return true;
+
+  // 2. ID match
+  if (station.id && target.id && station.id === target.id) return true;
+
+  // 3. Normalized name comparison
+  const sNorm = normalizeName(station.name);
+  const tNorm = normalizeName(target.name);
+  if (sNorm && tNorm) {
+    if (sNorm === tNorm) return true;
+    if (sNorm.includes(tNorm) || tNorm.includes(sNorm)) return true;
   }
+
   return false;
 }
 
 export default function WorldRiskMap({
   activeCity,
-  priorityStations,
-  directoryCities,
+  priorityStations = [],
+  directoryCities = [],
   onSelectCity,
   liveWeather,
   theme = "dark",
@@ -950,20 +220,106 @@ export default function WorldRiskMap({
   const [searchQuery, setSearchQuery] = useState("");
   const [liveStationData, setLiveStationData] = useState({});
 
+  // Dynamic user-searched cities (persisted in localStorage)
+  const [searchedCities, setSearchedCities] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cloudburst.mapSearchedCities");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Autocomplete / external world search state
+  const [externalResults, setExternalResults] = useState([]);
+  const [isSearchingExternal, setIsSearchingExternal] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchContainerRef = useRef(null);
+
   // Sync mapStyle with theme prop
   useEffect(() => {
     setMapStyle(theme === "dark" ? "esri-dark" : "osm");
   }, [theme]);
 
+  // Close search dropdown on outside click
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  // When activeCity prop changes from main app search or directory, ensure it is added to map
+  useEffect(() => {
+    if (!activeCity || !Number.isFinite(activeCity.latitude) || !Number.isFinite(activeCity.longitude)) return;
+
+    setSearchedCities((prev) => {
+      const alreadyPresent =
+        prev.some((c) => isMatchingStation(c, activeCity)) ||
+        CLOUDBURST_GLOBAL_STATIONS.some((c) => isMatchingStation(c, activeCity));
+
+      if (alreadyPresent) return prev;
+
+      const newEntry = {
+        id: activeCity.id || `search-${activeCity.name}-${activeCity.latitude.toFixed(2)}`,
+        name: activeCity.name,
+        region: activeCity.state || activeCity.region || activeCity.country || "Active Search",
+        country: activeCity.country || "Global",
+        countryCode: activeCity.countryCode || "",
+        continent: "Global",
+        basin: activeCity.basin || `${activeCity.name} Catchment`,
+        elevationM: activeCity.elevationM || null,
+        latitude: activeCity.latitude,
+        longitude: activeCity.longitude,
+        riskLevel: liveWeather?.risk?.level || "Low",
+        riskScore: liveWeather?.risk?.score ?? 15,
+        rainfallRateMmH: liveWeather?.current?.precipitation ?? 0,
+        capeJkg: liveWeather?.risk?.peakCape ?? 50,
+        pressureDrop3h: liveWeather?.risk?.pressureDrop3h ?? 0.2,
+        hazardType: liveWeather?.risk?.imdTier || "Live Searched Monitoring Node",
+        powerAsset: activeCity.powerAsset || "Regional Power Grid",
+        metAgency: activeCity.metAgency || "National Meteorological Service",
+        advisory: liveWeather?.risk?.powerAdvisory?.action || "Live Monitored Telemetry",
+        isUserSearched: true,
+      };
+
+      const updated = [newEntry, ...prev];
+      try {
+        localStorage.setItem("cloudburst.mapSearchedCities", JSON.stringify(updated.slice(0, 100)));
+      } catch {}
+      return updated;
+    });
+
+    // Fly camera smoothly to active city
+    if (mapInstanceRef.current && Number.isFinite(activeCity.latitude) && Number.isFinite(activeCity.longitude)) {
+      mapInstanceRef.current.flyTo([activeCity.latitude, activeCity.longitude], Math.max(mapInstanceRef.current.getZoom(), 8), {
+        duration: 1.2,
+      });
+    }
+  }, [activeCity?.name, activeCity?.latitude, activeCity?.longitude]);
+
   // Combine all candidate cities:
-  // 1. Monitored global mountain / hydro stations
-  // 2. All Priority Himalayan stations (from /api/locations)
-  // 3. World Cities directory results (browsed or filtered by user)
+  // 1. Curated global mountain, coastal & capital stations (300+ stations)
+  // 2. All user-searched cities from search bar / dashboard
+  // 3. Priority Himalayan stations
+  // 4. World Cities directory results
   const allCandidateCities = useMemo(() => {
     const list = [...CLOUDBURST_GLOBAL_STATIONS];
     const seen = new Set(
       list.map((s) => `${Number(s.latitude).toFixed(2)},${Number(s.longitude).toFixed(2)}`),
     );
+
+    // Merge searched cities first so they take high visibility
+    (searchedCities || []).forEach((sc) => {
+      const key = `${Number(sc.latitude).toFixed(2)},${Number(sc.longitude).toFixed(2)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.unshift(sc);
+      }
+    });
 
     // Merge priority stations from /api/locations
     (priorityStations || []).forEach((ps) => {
@@ -994,7 +350,7 @@ export default function WorldRiskMap({
     });
 
     // Merge world directory cities (from search or country browser)
-    (directoryCities || []).slice(0, 35).forEach((dc) => {
+    (directoryCities || []).slice(0, 50).forEach((dc) => {
       const key = `${Number(dc.latitude).toFixed(2)},${Number(dc.longitude).toFixed(2)}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -1022,7 +378,7 @@ export default function WorldRiskMap({
     });
 
     return list;
-  }, [priorityStations, directoryCities]);
+  }, [searchedCities, priorityStations, directoryCities]);
 
   // Fetch real-time live telemetry for all stations across the world via /api/weather/batch
   useEffect(() => {
@@ -1032,7 +388,7 @@ export default function WorldRiskMap({
       if (allCandidateCities.length === 0) return;
 
       try {
-        const payload = allCandidateCities.slice(0, 60).map((c) => ({
+        const payload = allCandidateCities.slice(0, 320).map((c) => ({
           id: c.id,
           name: c.name,
           state: c.region,
@@ -1064,7 +420,7 @@ export default function WorldRiskMap({
       } catch (err) {
         // Fallback to direct client API if backend batch endpoint is unreachable
         try {
-          const targets = allCandidateCities.slice(0, 50);
+          const targets = allCandidateCities.slice(0, 80);
           const lats = targets.map((s) => s.latitude.toFixed(3)).join(",");
           const lons = targets.map((s) => s.longitude.toFixed(3)).join(",");
           const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=precipitation,rain,relative_humidity_2m,pressure_msl,temperature_2m&hourly=precipitation,cape,pressure_msl&forecast_days=1`;
@@ -1109,7 +465,41 @@ export default function WorldRiskMap({
 
     fetchLiveTelemetry();
     return () => controller.abort();
-  }, [allCandidateCities]);
+  }, [allCandidateCities.length]);
+
+  // Live query for external world cities when searching in map input
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setExternalResults([]);
+      setIsSearchingExternal(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsSearchingExternal(true);
+
+    const timer = setTimeout(() => {
+      searchLocations({ q, limit: 6 }, controller.signal)
+        .then((res) => {
+          if (!controller.signal.aborted) {
+            setExternalResults(res.results || []);
+            setSearchOpen(true);
+          }
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setExternalResults([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setIsSearchingExternal(false);
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery]);
 
   // Compute live updated stations: active search city takes highest priority!
   const stationsWithLiveData = allCandidateCities.map((st) => {
@@ -1182,44 +572,60 @@ export default function WorldRiskMap({
     };
   });
 
-  // If activeCity is selected and not in candidate list, inject it dynamically
-  if (
-    activeCity &&
-    Number.isFinite(activeCity.latitude) &&
-    Number.isFinite(activeCity.longitude) &&
-    !stationsWithLiveData.some((st) => isMatchingStation(st, activeCity))
-  ) {
-    stationsWithLiveData.push({
-      id: `active-${activeCity.name}`,
-      name: activeCity.name,
-      region: activeCity.state || activeCity.country || "Active Search",
-      country: activeCity.country || activeCity.countryCode || "Global",
-      countryCode: activeCity.countryCode || "",
-      continent: "Global",
-      basin: activeCity.basin || "Regional Catchment",
-      elevationM: activeCity.elevationM || null,
-      latitude: activeCity.latitude,
-      longitude: activeCity.longitude,
-      riskLevel: liveWeather?.risk?.level || "Low",
-      riskScore: liveWeather?.risk?.score ?? 12,
-      rainfallRateMmH: liveWeather?.current?.precipitation ?? 0,
-      capeJkg: liveWeather?.risk?.peakCape ?? 50,
-      pressureDrop3h: liveWeather?.risk?.pressureDrop3h ?? 0.2,
-      hazardType: liveWeather?.risk?.imdTier || "Live Monitored Station",
-      powerAsset: activeCity.powerAsset || "Regional Power Grid",
-      metAgency: activeCity.metAgency || "National Meteorological Service",
-      advisory: liveWeather?.risk?.powerAdvisory?.action || "Live Monitored Telemetry",
-      isDashboardActive: true,
-      isDynamicActive: true,
+  // Action: Add city to map directly from search
+  const handleAddCityToMap = (city) => {
+    setSearchQuery("");
+    setSearchOpen(false);
+
+    // 1. Add to searchedCities if not present
+    setSearchedCities((prev) => {
+      const exists = prev.some((c) => isMatchingStation(c, city));
+      if (exists) return prev;
+      const entry = {
+        id: city.id || `search-${city.name}-${city.latitude.toFixed(2)}`,
+        name: city.name,
+        region: city.state || city.country || "Searched City",
+        country: city.country || "Global",
+        countryCode: city.countryCode || "",
+        continent: "Global",
+        basin: city.basin || `${city.name} Basin`,
+        elevationM: city.elevationM || null,
+        latitude: city.latitude,
+        longitude: city.longitude,
+        riskLevel: "Low",
+        riskScore: 16,
+        rainfallRateMmH: 0,
+        capeJkg: 50,
+        hazardType: "User-Added Monitored Station",
+        powerAsset: city.powerAsset || "Regional Power Grid",
+        metAgency: city.metAgency || "National Meteorological Service",
+        advisory: "Live Monitored Telemetry",
+        isUserSearched: true,
+      };
+      const updated = [entry, ...prev];
+      try {
+        localStorage.setItem("cloudburst.mapSearchedCities", JSON.stringify(updated.slice(0, 100)));
+      } catch {}
+      return updated;
     });
-  }
+
+    // 2. Fly map to coordinates
+    if (mapInstanceRef.current && Number.isFinite(city.latitude) && Number.isFinite(city.longitude)) {
+      mapInstanceRef.current.flyTo([city.latitude, city.longitude], 9, { duration: 1.4 });
+    }
+
+    // 3. Notify parent app
+    if (onSelectCity) {
+      onSelectCity(city);
+    }
+  };
 
   // Statistics
   const highRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "High").length;
   const watchRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Watch").length;
   const lowRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Low").length;
 
-  // Filter stations
+  // Filter stations for map display
   const filteredStations = stationsWithLiveData.filter((station) => {
     const matchesRisk = riskFilter === "ALL" || station.riskLevel === riskFilter;
     const matchesContinent =
@@ -1229,7 +635,8 @@ export default function WorldRiskMap({
       !q ||
       station.name.toLowerCase().includes(q) ||
       station.country.toLowerCase().includes(q) ||
-      station.basin.toLowerCase().includes(q);
+      (station.region && station.region.toLowerCase().includes(q)) ||
+      (station.basin && station.basin.toLowerCase().includes(q));
     return matchesRisk && matchesContinent && matchesQuery;
   });
 
@@ -1256,25 +663,22 @@ export default function WorldRiskMap({
 
   // Initialize Leaflet Map
   useEffect(() => {
-    if (!leafletReady || !mapContainerRef.current) return;
-    if (mapInstanceRef.current) return; // already initialized
-
+    if (!leafletReady || !mapContainerRef.current || mapInstanceRef.current) return;
     const L = window.L;
 
-    // Create map centered on the Himalayas / South Asia with world zoom
+    // Center on Indian Himalayas & Global belt [27.0, 78.0]
     const map = L.map(mapContainerRef.current, {
-      center: [28.0, 78.5],
+      center: [27.5, 78.5],
       zoom: 4,
       minZoom: 2,
-      maxZoom: 14,
-      worldCopyJump: true,
-      scrollWheelZoom: true,
+      maxZoom: 16,
       zoomControl: true,
+      worldCopyJump: true,
     });
 
     mapInstanceRef.current = map;
 
-    // Keyless tile layer
+    // Initial Base Tile Layer (100% Keyless)
     const provider =
       KEYLESS_TILE_PROVIDERS[mapStyle] || KEYLESS_TILE_PROVIDERS["esri-dark"];
 
@@ -1353,6 +757,7 @@ export default function WorldRiskMap({
 
     filteredStations.forEach((st) => {
       const isDashboardActive = st.isDashboardActive;
+      const isUserSearched = st.isUserSearched;
       const currentScore = st.riskScore;
       const currentLevel = st.riskLevel;
 
@@ -1386,7 +791,7 @@ export default function WorldRiskMap({
         // Low / Normal Green
         markerHtml = `
           <div class="relative flex items-center justify-center w-6 h-6" title="${st.name} - Low / Baseline Risk">
-            <div class="w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></div>
+            <div class="w-3 h-3 rounded-full ${isUserSearched ? "bg-cyan-500 ring-2 ring-cyan-300" : "bg-emerald-500"} border-2 border-white shadow-sm"></div>
           </div>
         `;
         markerSize = [24, 24];
@@ -1408,10 +813,11 @@ export default function WorldRiskMap({
         <div style="min-width: 250px; padding: 12px 14px; font-family: system-ui, sans-serif;">
           <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
             <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a;">${st.name}</h3>
-            <span style="font-size: 11px; font-family: monospace; font-weight: 600; color: #64748b;">${st.countryCode}</span>
+            <span style="font-size: 11px; font-family: monospace; font-weight: 600; color: #64748b;">${st.countryCode || "INTL"}</span>
           </div>
           <div style="font-size: 11px; color: #475569; margin-top: 2px;">
-            ${st.region}, ${st.country} · ${st.elevationM ? `${st.elevationM} m` : ""}
+            ${st.region ? `${st.region}, ` : ""}${st.country} ${st.elevationM ? `· ${st.elevationM} m` : ""}
+            ${isUserSearched ? ` · <span style="color: #0284c7; font-weight: 600;">Searched City</span>` : ""}
           </div>
 
           <div style="margin-top: 10px; padding: 8px 10px; border-radius: 6px; background-color: ${
@@ -1448,15 +854,15 @@ export default function WorldRiskMap({
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; font-size: 11px; font-family: monospace;">
             <div style="background: #f8fafc; padding: 4px 6px; border-radius: 4px;">
-              <span style="color: #64748b;">Rain Rate:</span> <strong>${st.rainfallRateMmH} mm/h</strong>
+              <span style="color: #64748b;">Rain Rate:</span> <strong>${st.rainfallRateMmH || 0} mm/h</strong>
             </div>
             <div style="background: #f8fafc; padding: 4px 6px; border-radius: 4px;">
-              <span style="color: #64748b;">CAPE:</span> <strong>${st.capeJkg} J/kg</strong>
+              <span style="color: #64748b;">CAPE:</span> <strong>${st.capeJkg || 0} J/kg</strong>
             </div>
           </div>
 
           <div style="margin-top: 8px; font-size: 10px; color: #64748b;">
-            <strong>Infrastructure:</strong> ${st.powerAsset}
+            <strong>Catchment / Grid:</strong> ${st.basin || st.powerAsset}
           </div>
 
           <button
@@ -1518,26 +924,23 @@ export default function WorldRiskMap({
       Number.isFinite(activeCity.longitude)
     ) {
       // Cyan glowing reticle circle marker
-      const reticle = L.circleMarker([activeCity.latitude, activeCity.longitude], {
-        radius: 14,
-        color: "#06b6d4",
-        weight: 3,
-        fillColor: "#22d3ee",
-        fillOpacity: 0.35,
-        dashArray: "3, 4",
-      }).addTo(map);
+      activeReticleRef.current = L.circleMarker(
+        [activeCity.latitude, activeCity.longitude],
+        {
+          radius: 18,
+          color: "#06b6d4", // Cyan
+          weight: 3,
+          opacity: 0.9,
+          fillColor: "#0891b2",
+          fillOpacity: 0.2,
+          dashArray: "4, 4",
+        }
+      ).addTo(map);
 
-      reticle.bindTooltip(
-        `Active Station: <strong>${activeCity.name}</strong> (${activeCity.latitude.toFixed(2)}°, ${activeCity.longitude.toFixed(2)}°)`,
+      activeReticleRef.current.bindTooltip(
+        `<strong>ACTIVE DASHBOARD NODE</strong><br/>${activeCity.name}`,
         { permanent: false, direction: "top" }
       );
-
-      activeReticleRef.current = reticle;
-
-      // Pan to the searched/active city smoothly
-      map.flyTo([activeCity.latitude, activeCity.longitude], Math.max(map.getZoom(), 7), {
-        duration: 1.2,
-      });
     }
   }, [activeCity]);
 
@@ -1548,83 +951,86 @@ export default function WorldRiskMap({
 
     switch (regionKey) {
       case "himalayas":
-        map.flyTo([30.5, 79.0], 7, { duration: 1.2 });
+        map.flyTo([30.5, 79.5], 7, { duration: 1.2 });
         break;
       case "western-ghats":
-        map.flyTo([13.5, 75.5], 7, { duration: 1.2 });
+        map.flyTo([13.5, 75.5], 6.5, { duration: 1.2 });
         break;
       case "europe":
-        map.flyTo([46.5, 9.5], 6, { duration: 1.2 });
+        map.flyTo([46.5, 8.5], 6, { duration: 1.2 });
         break;
       case "americas":
-        map.flyTo([39.0, -100.0], 5, { duration: 1.2 });
-        break;
-      case "east-asia":
-        map.flyTo([30.0, 120.0], 5, { duration: 1.2 });
+        map.flyTo([38.0, -100.0], 4.5, { duration: 1.2 });
         break;
       case "global":
       default:
-        map.flyTo([25.0, 30.0], 3, { duration: 1.2 });
+        map.flyTo([25.0, 30.0], 2.5, { duration: 1.2 });
         break;
     }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen((prev) => !prev);
   };
 
   return (
     <section
       id="world-map"
-      className="mt-10 border border-slate-200 bg-white rounded-lg overflow-hidden shadow-xs"
-      aria-labelledby="map-heading"
+      className={`relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-all duration-300 ${
+        isFullscreen ? "fixed inset-0 z-50 rounded-none" : "my-8"
+      }`}
+      aria-label="Global Cloudburst & Hydrological Risk Map"
     >
-      {/* Header with Title and Risk Statistics */}
-      <div className="p-5 border-b border-slate-200 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center p-1.5 rounded-md bg-blue-50 text-blue-700">
-              <Globe2 className="w-4 h-4" aria-hidden="true" />
-            </span>
-            <h2 id="map-heading" className="text-lg font-bold text-slate-900 tracking-tight">
-              Global Cloudburst Risk &amp; Vulnerability Radar
-            </h2>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-semibold font-mono animate-pulse">
-              LIVE RADAR
-            </span>
-            <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium font-mono">
-              Live Synced: /api/weather ({stationsWithLiveData.length} Cities)
-            </span>
+      {/* Map Header Bar */}
+      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-400">
+            <Globe2 className="w-4 h-4 animate-pulse" />
           </div>
-          <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Planetary observatory fetching live cloudburst telemetry through the /api/weather backend service (powered by OpenStreetMap &amp; Esri — zero API keys needed) identifying steep orographic flash flood zones,
-            Himalayan cloudburst corridors, convective instability hotspots, and monitored hydro assets.
-          </p>
-        </div>
-
-        {/* Real-time stats pills */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-50 border border-red-200 text-red-900">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
-            <span className="text-xs font-bold font-mono tabular-nums">{highRiskCount}</span>
-            <span className="text-xs font-medium">High Risk (Red)</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-950">
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-            <span className="text-xs font-bold font-mono tabular-nums">{watchRiskCount}</span>
-            <span className="text-xs font-medium">Watch (Amber)</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-950">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="text-xs font-bold font-mono tabular-nums">{lowRiskCount}</span>
-            <span className="text-xs font-medium">Low / Base</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+                World Cloudburst &amp; Flash Flood Risk Map
+              </h2>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/30">
+                LIVE TELEMETRY SYNC
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                {stationsWithLiveData.length} CITIES PLOTTED
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">
+              High-risk zones marked in red with radar pings. Search any city to automatically add it to the map.
+            </p>
           </div>
         </div>
+
+        {/* Live Active City Indicator Pill */}
+        {activeCity && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span className="text-slate-300 font-medium">ACTIVE:</span>
+            <span className="text-white font-bold">{activeCity.name}</span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                liveWeather?.risk?.level === "High"
+                  ? "bg-red-500/20 text-red-300"
+                  : liveWeather?.risk?.level === "Watch"
+                  ? "bg-amber-500/20 text-amber-300"
+                  : "bg-emerald-500/20 text-emerald-300"
+              }`}
+            >
+              {liveWeather?.risk?.level || "SYNC"} ({liveWeather?.risk?.score ?? 15}/100)
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Control Bar: Risk Filters, Region Jumps, Layer Options */}
-      <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 text-xs">
+      {/* Control Bar: Risk Filters, Region Jumps, Search Input, Layer Options */}
+      <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Risk Level Toggles */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-slate-500 font-medium mr-1 flex items-center gap-1">
+          <span className="text-slate-500 dark:text-slate-400 font-medium mr-1 flex items-center gap-1">
             <Filter className="w-3.5 h-3.5" /> Filter:
           </span>
 
@@ -1633,11 +1039,11 @@ export default function WorldRiskMap({
             onClick={() => setRiskFilter("ALL")}
             className={`px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
               riskFilter === "ALL"
-                ? "bg-slate-900 text-white shadow-xs"
-                : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-300"
+                ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs"
+                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700"
             }`}
           >
-            All Stations ({CLOUDBURST_GLOBAL_STATIONS.length})
+            All Cities ({stationsWithLiveData.length})
           </button>
 
           <button
@@ -1646,11 +1052,11 @@ export default function WorldRiskMap({
             className={`px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
               riskFilter === "High"
                 ? "bg-red-700 text-white shadow-xs"
-                : "bg-red-50 text-red-800 hover:bg-red-100 border border-red-300"
+                : "bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300 hover:bg-red-100 border border-red-300 dark:border-red-900"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
-            High Risk (Red Only)
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            High Risk ({highRiskCount})
           </button>
 
           <button
@@ -1659,11 +1065,11 @@ export default function WorldRiskMap({
             className={`px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
               riskFilter === "Watch"
                 ? "bg-amber-600 text-white shadow-xs"
-                : "bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300"
+                : "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 hover:bg-amber-100 border border-amber-300 dark:border-amber-900"
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-            Watch (Amber)
+            Watch ({watchRiskCount})
           </button>
 
           <button
@@ -1672,24 +1078,134 @@ export default function WorldRiskMap({
             className={`px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
               riskFilter === "Low"
                 ? "bg-emerald-700 text-white shadow-xs"
-                : "bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-300"
+                : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-300 dark:border-emerald-900"
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            Normal (Green)
+            Normal ({lowRiskCount})
           </button>
+        </div>
+
+        {/* Map Search Input with Autocomplete to Add Any City */}
+        <div ref={searchContainerRef} className="relative flex-1 min-w-[240px] max-w-sm">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearchOpen(true);
+            }}
+            onFocus={() => setSearchOpen(true)}
+            placeholder={`Search ${stationsWithLiveData.length}+ cities or add to map...`}
+            className="w-full pl-8 pr-7 py-1.5 text-xs rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setSearchOpen(false);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Autocomplete Dropdown */}
+          {searchOpen && searchQuery.trim().length >= 2 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 max-h-72 overflow-y-auto">
+              {/* 1. Matches already on the map */}
+              {filteredStations.length > 0 && (
+                <div className="p-1 border-b border-slate-100 dark:border-slate-700">
+                  <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Plotted Stations on Map ({filteredStations.length})
+                  </div>
+                  {filteredStations.slice(0, 5).map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearchOpen(false);
+                        if (mapInstanceRef.current) {
+                          mapInstanceRef.current.flyTo([st.latitude, st.longitude], 9, { duration: 1.2 });
+                        }
+                        if (onSelectCity) onSelectCity(st);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center justify-between text-xs"
+                    >
+                      <span className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                        <MapPin className="w-3 h-3 text-blue-500" />
+                        {st.name} <span className="text-slate-400 font-normal">({st.countryCode})</span>
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          st.riskLevel === "High"
+                            ? "bg-red-100 text-red-700"
+                            : st.riskLevel === "Watch"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {st.riskScore}/100
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 2. Global World Cities Search Results to Add to Map */}
+              {externalResults.length > 0 && (
+                <div className="p-1">
+                  <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>Add City to Map</span>
+                    <span className="text-blue-500 font-normal">Click to plot</span>
+                  </div>
+                  {externalResults.map((city) => (
+                    <button
+                      key={`${city.id}-${city.latitude}-${city.longitude}`}
+                      type="button"
+                      onClick={() => handleAddCityToMap(city)}
+                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-emerald-50 dark:hover:bg-slate-700 flex items-center justify-between text-xs group"
+                    >
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                          <PlusCircle className="w-3 h-3 text-emerald-600 group-hover:scale-110 transition-transform" />
+                          {city.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {city.state ? `${city.state}, ` : ""}{city.country}
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded font-medium">
+                        + Plot on Map
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {filteredStations.length === 0 && externalResults.length === 0 && !isSearchingExternal && (
+                <div className="p-4 text-center text-xs text-slate-400">
+                  No cities found for "{searchQuery}". Try a major city name.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Region Jumps */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-slate-500 font-medium mr-1 flex items-center gap-1">
+          <span className="text-slate-500 dark:text-slate-400 font-medium mr-1 flex items-center gap-1">
             <Compass className="w-3.5 h-3.5" /> Jump to:
           </span>
 
           <button
             type="button"
             onClick={() => zoomToRegion("himalayas")}
-            className="px-2.5 py-1 rounded bg-white border border-slate-300 text-slate-800 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 font-medium cursor-pointer"
+            className="px-2.5 py-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-700 hover:border-blue-300 font-medium cursor-pointer"
           >
             Himalayas &amp; IHR
           </button>
@@ -1697,7 +1213,7 @@ export default function WorldRiskMap({
           <button
             type="button"
             onClick={() => zoomToRegion("western-ghats")}
-            className="px-2.5 py-1 rounded bg-white border border-slate-300 text-slate-800 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 font-medium cursor-pointer"
+            className="px-2.5 py-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-700 hover:border-blue-300 font-medium cursor-pointer"
           >
             Western Ghats
           </button>
@@ -1705,7 +1221,7 @@ export default function WorldRiskMap({
           <button
             type="button"
             onClick={() => zoomToRegion("europe")}
-            className="px-2.5 py-1 rounded bg-white border border-slate-300 text-slate-800 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 font-medium cursor-pointer"
+            className="px-2.5 py-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-700 hover:border-blue-300 font-medium cursor-pointer"
           >
             Alps
           </button>
@@ -1713,7 +1229,7 @@ export default function WorldRiskMap({
           <button
             type="button"
             onClick={() => zoomToRegion("americas")}
-            className="px-2.5 py-1 rounded bg-white border border-slate-300 text-slate-800 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 font-medium cursor-pointer"
+            className="px-2.5 py-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-700 hover:border-blue-300 font-medium cursor-pointer"
           >
             Americas
           </button>
@@ -1721,45 +1237,46 @@ export default function WorldRiskMap({
           <button
             type="button"
             onClick={() => zoomToRegion("global")}
-            className="px-2.5 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 font-medium cursor-pointer"
+            className="px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-300 font-medium cursor-pointer"
           >
             World Overview
           </button>
         </div>
 
-        {/* Layer style & Corridors toggles */}
+        {/* Layer Controls & Fullscreen */}
         <div className="flex items-center gap-2">
+          {/* Corridor Toggle */}
           <button
             type="button"
             onClick={() => setShowCorridors(!showCorridors)}
-            className={`px-2.5 py-1 rounded border text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+            className={`px-2.5 py-1 rounded border font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
               showCorridors
-                ? "bg-red-50 text-red-900 border-red-300"
-                : "bg-white text-slate-600 border-slate-300"
+                ? "bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800"
+                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700"
             }`}
-            title="Toggle Orographic Cloudburst Vulnerability Corridors"
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Corridors {showCorridors ? "ON" : "OFF"}</span>
+            Corridors {showCorridors ? "ON" : "OFF"}
           </button>
 
+          {/* Map Style Selector (100% Free & Keyless) */}
           <select
             value={mapStyle}
             onChange={(e) => setMapStyle(e.target.value)}
-            className="px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium cursor-pointer"
-            aria-label="Map Tile Style"
+            className="px-2.5 py-1 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="esri-dark">Dark Radar (Esri · Keyless)</option>
-            <option value="osm">Standard Light (OSM · Keyless)</option>
-            <option value="topo">Mountain Topo (Keyless)</option>
-            <option value="satellite">Satellite Imagery (Keyless)</option>
+            <option value="esri-dark">Dark Radar (Esri)</option>
+            <option value="osm">Standard Light (OSM)</option>
+            <option value="topo">Mountain Topo (Esri)</option>
+            <option value="satellite">Satellite (Esri)</option>
           </select>
 
+          {/* Fullscreen Toggle */}
           <button
             type="button"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1 rounded bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
-            title={isFullscreen ? "Exit Fullscreen" : "Expand Map"}
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Map"}
           >
             {isFullscreen ? (
               <Minimize2 className="w-3.5 h-3.5" />
@@ -1770,164 +1287,83 @@ export default function WorldRiskMap({
         </div>
       </div>
 
-      {/* Main Map Container */}
+      {/* Main Map Canvas */}
       <div className="relative">
         <div
           ref={mapContainerRef}
-          className={`w-full transition-all ${
-            isFullscreen ? "h-[750px]" : "h-[500px]"
-          } bg-slate-950`}
+          className={`w-full bg-slate-950 ${
+            isFullscreen ? "h-[calc(100vh-105px)]" : "h-[540px]"
+          }`}
         />
 
-        {/* Legend Overlay inside Map */}
-        <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md border border-slate-700 text-white rounded-lg p-3 text-xs shadow-xl max-w-xs pointer-events-auto">
-          <div className="font-semibold text-slate-200 mb-2 flex items-center gap-1.5">
-            <OctagonAlert className="w-3.5 h-3.5 text-red-400" />
-            <span>Cloudburst Risk Thresholds</span>
-          </div>
-          <div className="space-y-1.5 text-[11px]">
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-white flex items-center justify-center text-[9px] font-bold text-white shrink-0">
-                !
-              </span>
-              <div>
-                <span className="font-bold text-red-400">HIGH RISK (Red):</span>{" "}
-                <span className="text-slate-300">
-                  &gt;100 mm/h or Score &ge; 60. Severe convective hazard.
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-amber-500 border border-white shrink-0"></span>
-              <div>
-                <span className="font-bold text-amber-400">WATCH (Amber):</span>{" "}
-                <span className="text-slate-300">
-                  25–59 Score. Elevated moisture / convective watch.
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white shrink-0"></span>
-              <div>
-                <span className="font-bold text-emerald-400">LOW (Green):</span>{" "}
-                <span className="text-slate-300">&lt;25 Score. Normal baseline weather.</span>
-              </div>
-            </div>
-
-            <div className="pt-1.5 mt-1.5 border-t border-slate-700/80 flex items-center gap-2 text-[10px] text-slate-400">
-              <span className="w-4 h-0.5 border-t-2 border-dashed border-red-500"></span>
-              <span>Dashed Red Line: High-hazard orographic corridor</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Active Station Card Overlay */}
+        {/* Floating Active Station Status Card in Top-Right */}
         {activeCity && (
-          <div className="hidden sm:flex absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md border border-slate-300 text-slate-900 rounded-lg p-3 text-xs shadow-lg max-w-xs pointer-events-auto items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-cyan-500 animate-pulse"></div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
-                  Active Station
-                </p>
-                <p className="font-bold text-slate-900 truncate max-w-[170px]">
-                  {activeCity.name}, {activeCity.countryCode || activeCity.state}
-                </p>
-              </div>
-            </div>
-            {liveWeather?.risk && (
+          <div className="absolute top-4 right-4 z-[400] max-w-xs bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-lg p-3 shadow-lg border border-slate-200 dark:border-slate-700 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-cyan-500 animate-ping"></span>
+                ACTIVE STATION
+              </span>
               <span
-                className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
-                  liveWeather.risk.level === "High"
-                    ? "bg-red-100 text-red-800"
-                    : liveWeather.risk.level === "Watch"
-                    ? "bg-amber-100 text-amber-900"
-                    : "bg-emerald-100 text-emerald-800"
+                className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px] ${
+                  liveWeather?.risk?.level === "High"
+                    ? "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300"
+                    : liveWeather?.risk?.level === "Watch"
+                    ? "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300"
+                    : "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300"
                 }`}
               >
-                {liveWeather.risk.score}/100
+                {liveWeather?.risk?.score ?? 18}/100
               </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Selected Station Quick Detail Footer Strip */}
-      {selectedStation && (
-        <div className="p-4 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
-          <div className="flex items-start gap-3">
-            <span
-              className={`p-1.5 rounded-md shrink-0 ${
-                selectedStation.riskLevel === "High"
-                  ? "bg-red-600 text-white"
-                  : selectedStation.riskLevel === "Watch"
-                  ? "bg-amber-500 text-slate-900"
-                  : "bg-emerald-600 text-white"
-              }`}
-            >
-              {selectedStation.riskLevel === "High" ? (
-                <OctagonAlert className="w-4 h-4" />
-              ) : selectedStation.riskLevel === "Watch" ? (
-                <AlertTriangle className="w-4 h-4" />
-              ) : (
-                <ShieldCheck className="w-4 h-4" />
-              )}
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold">{selectedStation.name}</span>
-                <span className="font-mono text-slate-400">
-                  {selectedStation.region}, {selectedStation.country}
-                </span>
-                <span
-                  className={`px-2 py-0.2 rounded font-mono font-bold text-[11px] ${
-                    selectedStation.riskLevel === "High"
-                      ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                      : selectedStation.riskLevel === "Watch"
-                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                      : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  }`}
-                >
-                  {selectedStation.riskLevel.toUpperCase()} RISK ({selectedStation.riskScore}/100)
-                </span>
-              </div>
-              <p className="text-slate-300 mt-1">{selectedStation.advisory}</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Basin: {selectedStation.basin} · Rain Rate: {selectedStation.rainfallRateMmH} mm/h ·
-                Instability (CAPE): {selectedStation.capeJkg} J/kg · Asset: {selectedStation.powerAsset}
-              </p>
+            </div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+              {activeCity.name}, {activeCity.countryCode || "IN"}
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              {activeCity.state || activeCity.region || "Catchment Corridor"}
             </div>
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (onSelectCity) {
-                onSelectCity({
-                  name: selectedStation.name.split("&")[0].trim(),
-                  state: selectedStation.region,
-                  country: selectedStation.country,
-                  countryCode: selectedStation.countryCode,
-                  latitude: selectedStation.latitude,
-                  longitude: selectedStation.longitude,
-                  elevationM: selectedStation.elevationM,
-                  basin: selectedStation.basin,
-                  powerAsset: selectedStation.powerAsset,
-                  metAgency: selectedStation.metAgency,
-                  isPriorityStation: true,
-                });
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }
-            }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-md transition-colors shrink-0 cursor-pointer"
-          >
-            Inspect in Live Dashboard &rarr;
-          </button>
+        {/* Legend Overlay in Bottom-Left */}
+        <div className="absolute bottom-4 left-4 z-[400] max-w-xs bg-slate-900/90 dark:bg-slate-950/95 text-white backdrop-blur-md rounded-lg p-3 shadow-lg border border-slate-700 text-xs space-y-2 pointer-events-auto">
+          <div className="font-semibold text-slate-200 flex items-center gap-1.5 text-[11px] border-b border-slate-700/80 pb-1.5">
+            <OctagonAlert className="w-3.5 h-3.5 text-red-400" />
+            Cloudburst Risk Thresholds
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="relative flex items-center justify-center w-3.5 h-3.5">
+              <span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-white flex items-center justify-center text-[8px] font-bold text-white">
+                !
+              </span>
+            </span>
+            <span className="text-[11px]">
+              <strong className="text-red-400">HIGH RISK (Red):</strong> &gt;100 mm/h or Score &ge; 60. Severe convective hazard.
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-amber-500 border border-white shrink-0"></span>
+            <span className="text-[11px]">
+              <strong className="text-amber-400">WATCH (Amber):</strong> 25–59 Score. Elevated moisture / convective watch.
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white shrink-0"></span>
+            <span className="text-[11px]">
+              <strong className="text-emerald-400">LOW (Green):</strong> &lt;25 Score. Normal baseline weather.
+            </span>
+          </div>
+
+          {showCorridors && (
+            <div className="pt-1 border-t border-slate-800 text-[10px] text-slate-400">
+              <span className="text-red-400 font-mono">---</span> Dashed Red Line: High-hazard orographic corridor
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }
-
