@@ -63,3 +63,4 @@ export const analyzeCustomRainfall = (timestamps, values, signal) =>
     signal,
     "Failed to analyze custom rainfall timeseries",
   );
+
