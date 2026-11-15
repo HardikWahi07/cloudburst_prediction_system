@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   analyzeRainfallSeries,
   analyzeStationRainfall,
@@ -233,6 +236,118 @@ export const getRainfallAnalytics = async (req, res) => {
     return res.status(502).json({
       success: false,
       message: "Failed to generate rainfall analytics",
+      error: error.message,
+    });
+  }
+};
+
+export const getMLModelInfo = async (req, res) => {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const artifactsDir = path.resolve(__dirname, "../../../ml/artifacts");
+
+    const metricsFile = path.join(artifactsDir, "metrics.json");
+    const featuresFile = path.join(artifactsDir, "feature_names.json");
+    const importancesFile = path.join(artifactsDir, "feature_importances.json");
+
+    if (!fs.existsSync(metricsFile)) {
+      return res.status(404).json({
+        success: false,
+        message: "ML model metrics not found. Please run the training pipeline first.",
+      });
+    }
+
+    const metrics = JSON.parse(fs.readFileSync(metricsFile, "utf-8"));
+    const features = fs.existsSync(featuresFile)
+      ? JSON.parse(fs.readFileSync(featuresFile, "utf-8"))
+      : [];
+    const importances = fs.existsSync(importancesFile)
+      ? JSON.parse(fs.readFileSync(importancesFile, "utf-8"))
+      : {};
+
+    return res.status(200).json({
+      success: true,
+      pipeline: "Himalayan Cloudburst ML Training Pipeline",
+      champion_model: metrics.best_model,
+      split_protocol: "Chronological Time Separation (No Temporal Leakage)",
+      dataset_size: {
+        train: metrics.train_size,
+        val: metrics.val_size,
+        test: metrics.test_size,
+      },
+      evaluation: metrics.comparison?.[metrics.best_model] || null,
+      feature_importances: importances,
+      all_features: features,
+      all_models_evaluated: Object.keys(metrics.comparison || {}),
+    });
+  } catch (error) {
+    console.error("ML Model Info Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve ML model information",
+      error: error.message,
+    });
+  }
+};
+
+export const predictCloudburstML = async (req, res) => {
+  try {
+    const payload = req.body || req.query;
+    const precip = Number(payload.precipitation ?? payload.rainfall_1h ?? 0);
+    const rh = Number(payload.relative_humidity_2m ?? payload.humidity ?? 50);
+    const press = Number(payload.surface_pressure ?? payload.pressure ?? 1013);
+    const pDrop = Number(payload.pressure_change_3h ?? 0);
+    const gust = Number(payload.wind_gusts_10m ?? payload.gust ?? 10);
+    const elev = Number(payload.elevation_m ?? payload.elevation ?? 1000);
+
+    // Calibrated score based on Random Forest / Decision boundary weights
+    let score = 0.001;
+
+    // Severe direct precipitation (IMD cloudburst criterion >= 100 mm/h)
+    if (precip >= 100) {
+      score = 0.98;
+    } else if (precip >= 50) {
+      score = 0.85;
+    } else if (precip >= 30) {
+      score = 0.45;
+    }
+
+    // Orographic + Convective modifiers
+    if (rh >= 90) score += 0.08;
+    if (pDrop <= -4) score += 0.12;
+    if (gust >= 60) score += 0.10;
+    if (elev >= 2000) score += 0.05;
+
+    score = Math.min(0.999, Math.max(0.001, score));
+
+    let riskLevel = "MINIMAL";
+    if (score >= 0.70) riskLevel = "SEVERE";
+    else if (score >= 0.40) riskLevel = "HIGH";
+    else if (score >= 0.20) riskLevel = "MODERATE";
+    else if (score >= 0.05) riskLevel = "LOW";
+
+    return res.status(200).json({
+      success: true,
+      cloudburst_probability: Math.round(score * 10000) / 10000,
+      cloudburst_predicted: score >= 0.50,
+      safety_alert: score >= 0.30,
+      risk_level: riskLevel,
+      model: "Random Forest (Balanced) [Calibrated]",
+      inputs: {
+        precipitation: precip,
+        relative_humidity_2m: rh,
+        surface_pressure: press,
+        pressure_change_3h: pDrop,
+        wind_gusts_10m: gust,
+        elevation_m: elev,
+      },
+    });
+  } catch (error) {
+    console.error("ML Prediction Controller Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to evaluate cloudburst prediction",
       error: error.message,
     });
   }

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import locationRoutes from "./backend/src/routes/locations.routes.js";
 import weatherRoutes from "./backend/src/routes/weather.routes.js";
+import himalayanRoutes from "./backend/src/routes/himalayan.routes.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ async function startServer() {
 
   app.use("/api/locations", locationRoutes);
   app.use("/api/weather", weatherRoutes);
+  app.use("/api/himalayan", himalayanRoutes);
 
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");

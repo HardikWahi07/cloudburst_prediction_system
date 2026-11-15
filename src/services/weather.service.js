@@ -83,3 +83,25 @@ export const getBatchWeather = async (locations, signal) => {
     throw new Error("Failed to fetch batch weather data", { cause: error });
   }
 };
+
+export const getMLModelInfo = (signal) =>
+  requestJson("/api/weather/ml-model-info", signal, "Failed to fetch ML model information");
+
+export const predictCloudburstML = async (observation, signal) => {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  try {
+    const response = await fetch(`${API_URL}/api/weather/ml-predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(observation),
+      signal: requestSignal,
+    });
+    if (!response.ok) throw new Error("Failed to evaluate cloudburst prediction");
+    return await response.json();
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new Error("Failed to evaluate cloudburst prediction", { cause: error });
+  }
+};
