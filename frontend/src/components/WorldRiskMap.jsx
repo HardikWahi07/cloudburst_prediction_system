@@ -4,6 +4,7 @@ import {
   Compass,
   Eye,
   Filter,
+  Flame,
   Globe2,
   Layers,
   MapPin,
@@ -209,10 +210,13 @@ export default function WorldRiskMap({
   const markersGroupRef = useRef(null);
   const corridorsGroupRef = useRef(null);
   const activeReticleRef = useRef(null);
+  const heatLayerRef = useRef(null);
 
   const [riskFilter, setRiskFilter] = useState("ALL"); // ALL, High, Watch, Low
   const [continentFilter, setContinentFilter] = useState("ALL");
   const [showCorridors, setShowCorridors] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showMarkers, setShowMarkers] = useState(true);
   const [mapStyle, setMapStyle] = useState(theme === "dark" ? "esri-dark" : "osm");
   const [selectedStation, setSelectedStation] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -621,13 +625,18 @@ export default function WorldRiskMap({
   };
 
   // Statistics
+  const criticalRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Critical").length;
   const highRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "High").length;
-  const watchRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Watch").length;
+  const watchRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Moderate" || s.riskLevel === "Watch").length;
   const lowRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Low").length;
 
   // Filter stations for map display
   const filteredStations = stationsWithLiveData.filter((station) => {
-    const matchesRisk = riskFilter === "ALL" || station.riskLevel === riskFilter;
+    const matchesRisk =
+      riskFilter === "ALL" ||
+      station.riskLevel === riskFilter ||
+      (riskFilter === "Watch" && station.riskLevel === "Moderate") ||
+      (riskFilter === "Moderate" && station.riskLevel === "Watch");
     const matchesContinent =
       continentFilter === "ALL" || station.continent === continentFilter;
     const q = searchQuery.trim().toLowerCase();
@@ -766,7 +775,20 @@ export default function WorldRiskMap({
       let markerSize = [32, 32];
       let iconAnchor = [16, 16];
 
-      if (currentLevel === "High") {
+      if (currentLevel === "Critical") {
+        // Crimson Marker with intense dual pulsating outer radar rings
+        markerHtml = `
+          <div class="relative flex items-center justify-center w-9 h-9" title="${st.name} - CRITICAL CLOUDBURST SURGE">
+            <span class="radar-ping-red scale-125"></span>
+            <span class="absolute w-7 h-7 rounded-full bg-red-700/40 animate-pulse"></span>
+            <div class="relative w-5 h-5 rounded-full bg-red-700 border-2 border-white shadow-xl flex items-center justify-center text-[11px] font-black text-white leading-none">
+              !
+            </div>
+          </div>
+        `;
+        markerSize = [36, 36];
+        iconAnchor = [18, 18];
+      } else if (currentLevel === "High") {
         // Red Marker with pulsating outer radar rings
         markerHtml = `
           <div class="relative flex items-center justify-center w-8 h-8" title="${st.name} - HIGH CLOUDBURST RISK">
@@ -777,10 +799,10 @@ export default function WorldRiskMap({
             </div>
           </div>
         `;
-      } else if (currentLevel === "Watch") {
+      } else if (currentLevel === "Moderate" || currentLevel === "Watch") {
         // Amber Marker with subtle radar ping
         markerHtml = `
-          <div class="relative flex items-center justify-center w-7 h-7" title="${st.name} - WATCH (Elevated Risk)">
+          <div class="relative flex items-center justify-center w-7 h-7" title="${st.name} - MODERATE (Elevated Convective Risk)">
             <span class="radar-ping-amber"></span>
             <div class="relative w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-white shadow-md"></div>
           </div>
@@ -907,6 +929,68 @@ export default function WorldRiskMap({
       marker.addTo(markersGroup);
     });
   }, [filteredStations, activeCity, liveWeather, onSelectCity]);
+
+  // Render heat map layer
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.L || !window.L.heatLayer) return;
+    const L = window.L;
+    const map = mapInstanceRef.current;
+
+    // Remove existing heat layer
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+      heatLayerRef.current = null;
+    }
+
+    if (!showHeatmap || filteredStations.length === 0) return;
+
+    // Build heat data: [lat, lng, intensity]
+    // Intensity scaled from risk score (0-100 → 0.0-1.0) with a minimum floor
+    const heatData = filteredStations.map((st) => {
+      const intensity = Math.max(0.15, (st.riskScore || 10) / 100);
+      return [st.latitude, st.longitude, intensity];
+    });
+
+    // Create heat layer with risk-themed gradient
+    heatLayerRef.current = L.heatLayer(heatData, {
+      radius: 35,
+      blur: 30,
+      maxZoom: 12,
+      max: 1.0,
+      minOpacity: 0.35,
+      gradient: {
+        0.0: "#064e3b",   // Deep emerald (very low risk)
+        0.15: "#059669",  // Emerald green (low)
+        0.30: "#84cc16",  // Lime (low-moderate transition)
+        0.45: "#eab308",  // Yellow (moderate)
+        0.55: "#f59e0b",  // Amber
+        0.65: "#ea580c",  // Orange (high)
+        0.80: "#dc2626",  // Red (severe)
+        0.90: "#991b1b",  // Dark red (critical)
+        1.0: "#7f1d1d",   // Crimson (extreme)
+      },
+    }).addTo(map);
+
+    // Ensure markers render above heat layer
+    if (markersGroupRef.current) {
+      markersGroupRef.current.bringToFront();
+    }
+  }, [filteredStations, leafletReady, showHeatmap]);
+
+  // Toggle markers visibility
+  useEffect(() => {
+    if (!mapInstanceRef.current || !markersGroupRef.current) return;
+    const map = mapInstanceRef.current;
+    if (showMarkers) {
+      if (!map.hasLayer(markersGroupRef.current)) {
+        map.addLayer(markersGroupRef.current);
+      }
+    } else {
+      if (map.hasLayer(markersGroupRef.current)) {
+        map.removeLayer(markersGroupRef.current);
+      }
+    }
+  }, [showMarkers, filteredStations]);
 
   // When activeCity in the main dashboard changes, draw a target reticle and pan map
   useEffect(() => {
@@ -1142,11 +1226,13 @@ export default function WorldRiskMap({
                       </span>
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          st.riskLevel === "High"
-                            ? "bg-red-100 text-red-700"
-                            : st.riskLevel === "Watch"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-emerald-100 text-emerald-800"
+                          st.riskLevel === "Critical"
+                            ? "bg-red-200 text-red-900 border border-red-300 dark:bg-red-950 dark:text-red-200"
+                            : st.riskLevel === "High"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
+                            : st.riskLevel === "Moderate" || st.riskLevel === "Watch"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
                         }`}
                       >
                         {st.riskScore}/100
@@ -1245,6 +1331,34 @@ export default function WorldRiskMap({
 
         {/* Layer Controls & Fullscreen */}
         <div className="flex items-center gap-2">
+          {/* Heat Map Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className={`px-2.5 py-1 rounded border font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              showHeatmap
+                ? "bg-orange-50 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800"
+                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700"
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5" />
+            Heat Map {showHeatmap ? "ON" : "OFF"}
+          </button>
+
+          {/* Markers Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowMarkers(!showMarkers)}
+            className={`px-2.5 py-1 rounded border font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              showMarkers
+                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800"
+                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700"
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            Markers {showMarkers ? "ON" : "OFF"}
+          </button>
+
           {/* Corridor Toggle */}
           <button
             type="button"
@@ -1331,6 +1445,26 @@ export default function WorldRiskMap({
             <OctagonAlert className="w-3.5 h-3.5 text-red-400" />
             Cloudburst Risk Thresholds
           </div>
+
+          {showHeatmap && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Heat Intensity Gradient
+              </div>
+              <div
+                className="h-3 rounded-sm"
+                style={{
+                  background: "linear-gradient(to right, #064e3b, #059669, #84cc16, #eab308, #f59e0b, #ea580c, #dc2626, #991b1b, #7f1d1d)",
+                }}
+              />
+              <div className="flex justify-between text-[9px] text-slate-400 font-mono">
+                <span>LOW 0</span>
+                <span>MODERATE 30</span>
+                <span>HIGH 60</span>
+                <span>CRITICAL 100</span>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <span className="relative flex items-center justify-center w-3.5 h-3.5">
