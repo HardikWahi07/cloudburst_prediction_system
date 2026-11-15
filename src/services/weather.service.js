@@ -50,6 +50,21 @@ export const getWeather = async (latitude, longitude, signal) => {
   return requestJson(`/api/weather?${params}`, signal, "Failed to fetch weather data");
 };
 
+export const getHistoricalWeather = async (latitude, longitude, startDate, endDate, signal) => {
+  const params = new URLSearchParams({
+    lat: String(latitude),
+    lon: String(longitude),
+    startDate,
+    endDate,
+  });
+
+  return requestJson(
+    `/api/weather/historical?${params}`,
+    signal,
+    "Failed to fetch historical weather data",
+  );
+};
+
 export const getBatchWeather = async (locations, signal) => {
   const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
   const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
