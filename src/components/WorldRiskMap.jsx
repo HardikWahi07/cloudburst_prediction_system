@@ -621,13 +621,18 @@ export default function WorldRiskMap({
   };
 
   // Statistics
+  const criticalRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Critical").length;
   const highRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "High").length;
-  const watchRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Watch").length;
+  const watchRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Moderate" || s.riskLevel === "Watch").length;
   const lowRiskCount = stationsWithLiveData.filter((s) => s.riskLevel === "Low").length;
 
   // Filter stations for map display
   const filteredStations = stationsWithLiveData.filter((station) => {
-    const matchesRisk = riskFilter === "ALL" || station.riskLevel === riskFilter;
+    const matchesRisk =
+      riskFilter === "ALL" ||
+      station.riskLevel === riskFilter ||
+      (riskFilter === "Watch" && station.riskLevel === "Moderate") ||
+      (riskFilter === "Moderate" && station.riskLevel === "Watch");
     const matchesContinent =
       continentFilter === "ALL" || station.continent === continentFilter;
     const q = searchQuery.trim().toLowerCase();
@@ -766,7 +771,20 @@ export default function WorldRiskMap({
       let markerSize = [32, 32];
       let iconAnchor = [16, 16];
 
-      if (currentLevel === "High") {
+      if (currentLevel === "Critical") {
+        // Crimson Marker with intense dual pulsating outer radar rings
+        markerHtml = `
+          <div class="relative flex items-center justify-center w-9 h-9" title="${st.name} - CRITICAL CLOUDBURST SURGE">
+            <span class="radar-ping-red scale-125"></span>
+            <span class="absolute w-7 h-7 rounded-full bg-red-700/40 animate-pulse"></span>
+            <div class="relative w-5 h-5 rounded-full bg-red-700 border-2 border-white shadow-xl flex items-center justify-center text-[11px] font-black text-white leading-none">
+              !
+            </div>
+          </div>
+        `;
+        markerSize = [36, 36];
+        iconAnchor = [18, 18];
+      } else if (currentLevel === "High") {
         // Red Marker with pulsating outer radar rings
         markerHtml = `
           <div class="relative flex items-center justify-center w-8 h-8" title="${st.name} - HIGH CLOUDBURST RISK">
@@ -777,10 +795,10 @@ export default function WorldRiskMap({
             </div>
           </div>
         `;
-      } else if (currentLevel === "Watch") {
+      } else if (currentLevel === "Moderate" || currentLevel === "Watch") {
         // Amber Marker with subtle radar ping
         markerHtml = `
-          <div class="relative flex items-center justify-center w-7 h-7" title="${st.name} - WATCH (Elevated Risk)">
+          <div class="relative flex items-center justify-center w-7 h-7" title="${st.name} - MODERATE (Elevated Convective Risk)">
             <span class="radar-ping-amber"></span>
             <div class="relative w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-white shadow-md"></div>
           </div>
@@ -1142,11 +1160,13 @@ export default function WorldRiskMap({
                       </span>
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          st.riskLevel === "High"
-                            ? "bg-red-100 text-red-700"
-                            : st.riskLevel === "Watch"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-emerald-100 text-emerald-800"
+                          st.riskLevel === "Critical"
+                            ? "bg-red-200 text-red-900 border border-red-300 dark:bg-red-950 dark:text-red-200"
+                            : st.riskLevel === "High"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
+                            : st.riskLevel === "Moderate" || st.riskLevel === "Watch"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
                         }`}
                       >
                         {st.riskScore}/100

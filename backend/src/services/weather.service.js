@@ -7,6 +7,7 @@ import {
   normalizeTemperature,
   normalizeWind,
 } from "./meteorology.normalizer.js";
+import { evaluateProbabilisticRisk } from "./probabilisticRisk.service.js";
 import { resilientFetchJson, weatherCache } from "./resilientFetch.js";
 
 const getMeasurement = (value, min, max = Infinity) =>
@@ -34,6 +35,13 @@ const getImdRainfallTier = (hourlyPeakMm) => {
 };
 
 const getPowerAdvisory = (level) => {
+  if (level === "Critical") {
+    return {
+      status: "Emergency Spillway & Grid Islanding Directive",
+      action:
+        "CRITICAL CLOUDBURST ALERT: Immediately alert downstream civil defense, open emergency spillway gates, halt turbine intake to prevent severe silt erosion, and isolate vulnerable 400kV substations.",
+    };
+  }
   if (level === "High") {
     return {
       status: "Emergency Reservoir & Grid Alert",
@@ -41,7 +49,7 @@ const getPowerAdvisory = (level) => {
         "Alert upstream hydro control rooms, initiate controlled spillway pre-release, inspect silt-flushing gates, and prepare 220/400 kV substation islanding.",
     };
   }
-  if (level === "Watch") {
+  if (level === "Moderate" || level === "Watch") {
     return {
       status: "Elevated Hydrological Watch",
       action:
@@ -55,7 +63,7 @@ const getPowerAdvisory = (level) => {
   };
 };
 
-const getRisk = (current, hourly) => {
+const getRisk = (current, hourly, options = {}) => {
   // Open-Meteo returns local timestamps and hourly precipitation for the preceding hour.
   const nextHour = hourly.time.findIndex((time) => time > current.time);
   const upcomingRain = nextHour === -1
@@ -75,57 +83,42 @@ const getRisk = (current, hourly) => {
       : null;
   const pressureDrop3h = getPressureDrop3h(current, hourly);
 
-  // Multi-parameter meteorological risk index (0–100) combining rainfall intensity,
-  // moisture saturation, convective instability (CAPE), and barometric pressure drop.
-  const rainPoints = Math.min(25, (rain ?? 0) * 3.5);
-  const forecastPoints = Math.min(40, (peakRain ?? 0) * 2.5);
-  const humidityPoints =
-    humidity >= 92 ? 12 : humidity >= 85 ? 8 : humidity >= 75 ? 4 : 0;
-  const dewSpreadPoints =
-    dewPointSpread !== null && dewPointSpread <= 1.5
-      ? 8
-      : dewPointSpread !== null && dewPointSpread <= 3
-        ? 4
-        : 0;
-  const capePoints =
-    peakCape !== null && peakCape >= 1500
-      ? 10
-      : peakCape !== null && peakCape >= 800
-        ? 6
-        : peakCape !== null && peakCape >= 300
-          ? 2
-          : 0;
-  const pressurePoints =
-    pressureDrop3h !== null && pressureDrop3h >= 2.5
-      ? 5
-      : pressureDrop3h !== null && pressureDrop3h >= 1.2
-        ? 3
-        : 0;
-
-  const score = Math.min(
-    100,
-    Math.round(
-      rainPoints +
-        forecastPoints +
-        humidityPoints +
-        dewSpreadPoints +
-        capePoints +
-        pressurePoints,
-    ),
+  const probRisk = evaluateProbabilisticRisk(
+    {
+      rain,
+      peakRain3h: peakRain,
+      humidity,
+      pressureDrop3h,
+      dewPointSpread,
+      cape: peakCape,
+      windGust: current.windGust,
+      elevation: current.elevation,
+      timestamp: current.time,
+    },
+    options,
   );
-  const level = score >= 60 ? "High" : score >= 25 ? "Watch" : "Low";
+
   const observedOrPeak = Math.max(rain ?? 0, peakRain ?? 0);
+  const level = probRisk.category; // "Low" | "Moderate" | "High" | "Critical"
 
   return {
     level,
-    score,
+    category: probRisk.category,
+    score: Math.round(probRisk.probability * 100),
+    probability: probRisk.probability,
+    probabilityPercentage: probRisk.probabilityPercentage,
+    alertCode: probRisk.alertCode,
+    confidence: probRisk.confidence,
+    freshness: probRisk.freshness,
+    thresholds: probRisk.thresholds,
     imdTier: getImdRainfallTier(observedOrPeak),
     pressureDrop3h,
     dewPointSpread,
     peakCape,
     peakRain3h: peakRain,
     powerAdvisory: getPowerAdvisory(level),
-    reason: `Rain: ${Number.isFinite(rain) ? `${rain} mm` : "N/A"}; 3h peak forecast: ${peakRain === null ? "N/A" : `${peakRain} mm`}; humidity: ${Number.isFinite(humidity) ? `${humidity}%` : "N/A"}; CAPE: ${peakCape === null ? "N/A" : `${Math.round(peakCape)} J/kg`}; 3h pressure drop: ${pressureDrop3h === null ? "N/A" : `${pressureDrop3h} hPa`}.`,
+    probabilistic: probRisk,
+    reason: `Rain: ${Number.isFinite(rain) ? `${rain} mm` : "N/A"}; 3h peak forecast: ${peakRain === null ? "N/A" : `${peakRain} mm`}; humidity: ${Number.isFinite(humidity) ? `${humidity}%` : "N/A"}; CAPE: ${peakCape === null ? "N/A" : `${Math.round(peakCape)} J/kg`}; 3h pressure drop: ${pressureDrop3h === null ? "N/A" : `${pressureDrop3h} hPa`}; Calibrated Prob: ${probRisk.probabilityPercentage}% (${level}).`,
   };
 };
 
@@ -176,7 +169,7 @@ const getForecastSummary = (current, hourly) => {
   return summary;
 };
 
-const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null) => {
+const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null, options = {}) => {
   const { current, hourly } = data || {};
   if (!current || !hourly || !Array.isArray(hourly.time)) {
     throw new Error("Weather API returned an incomplete forecast");
@@ -258,7 +251,7 @@ const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null) 
 
   return {
     ...weather,
-    risk: getRisk(weather.current, weather.hourly),
+    risk: getRisk(weather.current, weather.hourly, options),
     summary: getForecastSummary(weather.current, weather.hourly),
   };
 };
@@ -300,7 +293,7 @@ export const getWeatherData = async (latitude, longitude, options = {}) => {
     }
   );
 
-  return formatSingleWeather(data, latitude, longitude, provenance);
+  return formatSingleWeather(data, latitude, longitude, provenance, options);
 };
 
 /**

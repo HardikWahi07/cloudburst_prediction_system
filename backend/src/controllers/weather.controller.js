@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  evaluateProbabilisticRisk,
+  THRESHOLD_PROFILES,
+} from "../services/probabilisticRisk.service.js";
+import {
   analyzeRainfallSeries,
   analyzeStationRainfall,
 } from "../services/rainfallAnalytics.service.js";
@@ -45,9 +49,21 @@ export const getWeather = async (req, res) => {
     const pastDaysNum = Number.parseInt(String(pastDays ?? past_days ?? "1"), 10);
     const forceRefresh = refresh === "true" || refresh === "1";
 
+    const thresholdProfile = req.query.thresholdProfile || req.query.profile || "balanced";
+    const customThresholds =
+      req.query.lowThreshold || req.query.moderateThreshold || req.query.criticalThreshold
+        ? {
+            low: req.query.lowThreshold ? Number(req.query.lowThreshold) : undefined,
+            moderate: req.query.moderateThreshold ? Number(req.query.moderateThreshold) : undefined,
+            critical: req.query.criticalThreshold ? Number(req.query.criticalThreshold) : undefined,
+          }
+        : null;
+
     const weather = await getWeatherData(latitude, longitude, {
       pastDays: Number.isFinite(pastDaysNum) ? pastDaysNum : 1,
       forceRefresh,
+      thresholdProfile,
+      customThresholds,
     });
 
     return res.status(200).json({
@@ -348,6 +364,102 @@ export const predictCloudburstML = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to evaluate cloudburst prediction",
+      error: error.message,
+    });
+  }
+};
+
+export const getRiskThresholdProfiles = async (_req, res) => {
+  return res.status(200).json({
+    success: true,
+    profiles: THRESHOLD_PROFILES,
+    defaultProfile: "balanced",
+    categories: ["Low", "Moderate", "High", "Critical"],
+  });
+};
+
+export const getProbabilisticRiskAssessment = async (req, res) => {
+  try {
+    const lat = req.query.lat ?? req.body?.lat;
+    const lon = req.query.lon ?? req.body?.lon;
+    const profile = req.query.thresholdProfile || req.query.profile || req.body?.thresholdProfile || "balanced";
+    const customThresholds =
+      req.body?.thresholds ||
+      req.body?.customThresholds ||
+      (req.query.lowThreshold || req.query.moderateThreshold || req.query.criticalThreshold
+        ? {
+            low: req.query.lowThreshold ? Number(req.query.lowThreshold) : undefined,
+            moderate: req.query.moderateThreshold ? Number(req.query.moderateThreshold) : undefined,
+            critical: req.query.criticalThreshold ? Number(req.query.criticalThreshold) : undefined,
+          }
+        : null);
+
+    // If direct parameters provided in POST body
+    if (req.method === "POST" && (req.body?.rain !== undefined || req.body?.precipitation !== undefined)) {
+      const assessment = evaluateProbabilisticRisk(
+        {
+          rain: Number(req.body.rain ?? req.body.precipitation ?? 0),
+          peakRain3h: Number(req.body.peakRain3h ?? req.body.peak_rain_3h ?? 0),
+          humidity: Number(req.body.humidity ?? req.body.relative_humidity_2m ?? 60),
+          pressureDrop3h: Number(req.body.pressureDrop3h ?? req.body.pressure_drop_3h ?? 0),
+          dewPointSpread: req.body.dewPointSpread !== undefined ? Number(req.body.dewPointSpread) : null,
+          cape: Number(req.body.cape ?? 0),
+          windGust: Number(req.body.windGust ?? req.body.wind_gusts_10m ?? 10),
+          elevation: Number(req.body.elevation ?? req.body.elevation_m ?? 1000),
+          timestamp: req.body.timestamp || new Date().toISOString(),
+          fetchedAt: new Date().toISOString(),
+        },
+        { thresholdProfile: profile, customThresholds },
+      );
+
+      return res.status(200).json({
+        success: true,
+        mode: "direct_parameters",
+        assessment,
+      });
+    }
+
+    // Otherwise, fetch station weather by lat/lon
+    if (lat === undefined || lon === undefined || lat === "" || lon === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and longitude are required (e.g. ?lat=30.73&lon=79.06)",
+      });
+    }
+
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid latitude or longitude coordinates",
+      });
+    }
+
+    const weather = await getWeatherData(latitude, longitude, {
+      pastDays: 1,
+      thresholdProfile: profile,
+      customThresholds,
+    });
+
+    return res.status(200).json({
+      success: true,
+      mode: "station_telemetry",
+      location: weather.location,
+      risk: weather.risk,
+      probabilisticRisk: weather.risk.probabilistic,
+      confidence: weather.risk.confidence,
+      freshness: weather.risk.freshness,
+      thresholds: weather.risk.thresholds,
+      category: weather.risk.category,
+      probability: weather.risk.probability,
+    });
+  } catch (error) {
+    console.error("Probabilistic Risk Assessment Error:", error);
+    return res.status(502).json({
+      success: false,
+      message: "Failed to compute probabilistic risk assessment",
       error: error.message,
     });
   }

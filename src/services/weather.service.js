@@ -41,11 +41,24 @@ export const searchLocations = ({ q = "", country = "", limit = 50, offset = 0 }
   );
 };
 
-export const getWeather = async (latitude, longitude, signal) => {
+export const getWeather = async (latitude, longitude, optionsOrSignal, maybeSignal) => {
+  let signal;
+  let options = {};
+  if (optionsOrSignal instanceof AbortSignal) {
+    signal = optionsOrSignal;
+  } else if (typeof optionsOrSignal === "object" && optionsOrSignal !== null) {
+    options = optionsOrSignal;
+    signal = maybeSignal;
+  }
+
   const params = new URLSearchParams({
     lat: String(latitude),
     lon: String(longitude),
   });
+  if (options.thresholdProfile) params.set("profile", options.thresholdProfile);
+  if (options.lowThreshold) params.set("lowThreshold", String(options.lowThreshold));
+  if (options.moderateThreshold) params.set("moderateThreshold", String(options.moderateThreshold));
+  if (options.criticalThreshold) params.set("criticalThreshold", String(options.criticalThreshold));
 
   return requestJson(`/api/weather?${params}`, signal, "Failed to fetch weather data");
 };
@@ -86,6 +99,26 @@ export const getBatchWeather = async (locations, signal) => {
 
 export const getMLModelInfo = (signal) =>
   requestJson("/api/weather/ml-model-info", signal, "Failed to fetch ML model information");
+
+export const getRiskThresholdProfiles = (signal) =>
+  requestJson("/api/weather/threshold-profiles", signal, "Failed to fetch threshold profiles");
+
+export const getProbabilisticRisk = (latitude, longitude, options = {}, signal) => {
+  const params = new URLSearchParams({
+    lat: String(latitude),
+    lon: String(longitude),
+  });
+  if (options.thresholdProfile) params.set("profile", options.thresholdProfile);
+  if (options.lowThreshold) params.set("lowThreshold", String(options.lowThreshold));
+  if (options.moderateThreshold) params.set("moderateThreshold", String(options.moderateThreshold));
+  if (options.criticalThreshold) params.set("criticalThreshold", String(options.criticalThreshold));
+
+  return requestJson(
+    `/api/weather/probabilistic-risk?${params}`,
+    signal,
+    "Failed to fetch probabilistic risk assessment",
+  );
+};
 
 export const predictCloudburstML = async (observation, signal) => {
   const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);

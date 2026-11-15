@@ -77,24 +77,39 @@ function formatPeakTime(peakTime, currentTime, tzLabel) {
 }
 
 function getRiskAppearance(level) {
-  if (level === "High") {
+  if (level === "Critical") {
     return {
-      container: "bg-red-50 border-red-200 text-red-900",
-      badgeText: "text-red-700",
+      container: "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800 text-red-950 dark:text-red-100",
+      badgeText: "text-red-700 dark:text-red-300",
+      badgeBg: "bg-red-600 text-white",
       Icon: OctagonAlert,
+      category: "Critical",
     };
   }
-  if (level === "Watch") {
+  if (level === "High") {
     return {
-      container: "bg-amber-50 border-amber-200 text-amber-950",
-      badgeText: "text-amber-800",
+      container: "bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 text-orange-950 dark:text-orange-100",
+      badgeText: "text-orange-700 dark:text-orange-300",
+      badgeBg: "bg-orange-600 text-white",
       Icon: AlertTriangle,
+      category: "High",
+    };
+  }
+  if (level === "Moderate" || level === "Watch") {
+    return {
+      container: "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-100",
+      badgeText: "text-amber-800 dark:text-amber-300",
+      badgeBg: "bg-amber-600 text-white",
+      Icon: AlertTriangle,
+      category: "Moderate",
     };
   }
   return {
-    container: "bg-emerald-50 border-emerald-200 text-emerald-950",
-    badgeText: "text-emerald-800",
+    container: "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100",
+    badgeText: "text-emerald-800 dark:text-emerald-300",
+    badgeBg: "bg-emerald-600 text-white",
     Icon: CheckCircle2,
+    category: "Low",
   };
 }
 
@@ -104,6 +119,7 @@ function App() {
   const [locationsAttempt, setLocationsAttempt] = useState(0);
   const [selectedCity, setSelectedCity] = useState(readSavedCity);
   const [weather, setWeather] = useState(null);
+  const [thresholdProfile, setThresholdProfile] = useState("balanced");
   const [locationsError, setLocationsError] = useState("");
   const [error, setError] = useState("");
   const [refreshCount, setRefreshCount] = useState(0);
@@ -188,7 +204,7 @@ function App() {
 
     const controller = new AbortController();
 
-    getWeather(latitude, longitude, controller.signal)
+    getWeather(latitude, longitude, { thresholdProfile }, controller.signal)
       .then((data) => {
         if (!controller.signal.aborted) setWeather(data);
       })
@@ -200,7 +216,7 @@ function App() {
       });
 
     return () => controller.abort();
-  }, [latitude, longitude, refreshCount]);
+  }, [latitude, longitude, refreshCount, thresholdProfile]);
 
   // Quick global city search (debounced 200ms)
   useEffect(() => {
@@ -751,29 +767,132 @@ function App() {
             <div className="mt-6 space-y-6">
               {weather.risk && riskStyle && (
                 <div
-                  className={`border rounded-lg p-5 ${riskStyle.container}`}
+                  className={`border rounded-xl p-5 shadow-sm transition-all ${riskStyle.container}`}
                   aria-live="polite"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-2.5">
+                  {/* Top Bar: Risk Category, Probability, Confidence & Freshness */}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <RiskIcon
                         className={`w-5 h-5 shrink-0 ${riskStyle.badgeText}`}
                         aria-hidden="true"
                       />
-                      <span className="text-base font-semibold">
-                        Cloudburst Risk: {weather.risk.level}
+                      <span className="text-base font-bold">
+                        Cloudburst Risk: {weather.risk.category || weather.risk.level}
                       </span>
-                      <span className="text-xs opacity-75">
+                      <span
+                        className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          (weather.risk.category || weather.risk.level) === "Critical"
+                            ? "bg-red-600 text-white"
+                            : (weather.risk.category || weather.risk.level) === "High"
+                            ? "bg-orange-600 text-white"
+                            : (weather.risk.category || weather.risk.level) === "Moderate"
+                            ? "bg-amber-600 text-white"
+                            : "bg-emerald-600 text-white"
+                        }`}
+                      >
+                        {weather.risk.category || weather.risk.level}
+                      </span>
+                      <span className="text-xs opacity-75 hidden sm:inline">
                         · {weather.risk.imdTier}
                       </span>
                     </div>
-                    <div className="font-mono text-sm font-semibold tabular-nums">
-                      Risk Index: {weather.risk.score} / 100
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Confidence Pill */}
+                      {weather.risk.confidence && (
+                        <div
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/80 dark:bg-slate-900/60 border border-current/15 text-xs font-medium font-mono"
+                          title={weather.risk.confidence.description || "Model prediction confidence"}
+                        >
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                          <span>Confidence: <strong>{weather.risk.confidence.score}%</strong> ({weather.risk.confidence.tier})</span>
+                        </div>
+                      )}
+
+                      {/* Data Freshness Pill */}
+                      <div
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/80 dark:bg-slate-900/60 border border-current/15 text-xs font-medium font-mono"
+                        title={`Data latency: ${weather.risk.freshness?.ageMinutes ?? 0}m. Source: ${weather.ingestion?.source || "Open-Meteo"}`}
+                      >
+                        <span
+                          className={`inline-block w-2 h-2 rounded-full ${
+                            weather.risk.freshness?.status === "STALE"
+                              ? "bg-red-500"
+                              : weather.risk.freshness?.status === "RECENT"
+                              ? "bg-amber-500"
+                              : "bg-emerald-500 animate-pulse"
+                          }`}
+                        ></span>
+                        <span>{weather.risk.freshness?.label || "Live"} · {weather.risk.freshness?.relativeText || "Just now"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Middle Row: Calibrated Probability Meter & Threshold Configuration */}
+                  <div className="mt-4 pt-4 border-t border-current/15 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div className="md:col-span-2">
+                      <div className="flex items-center justify-between text-xs font-mono mb-1.5">
+                        <span className="font-semibold text-current flex items-center gap-1.5">
+                          Calibrated Cloudburst Probability:
+                          <span className="text-sm font-bold tabular-nums">
+                            {weather.risk.probabilityPercentage ?? weather.risk.score}%
+                          </span>
+                        </span>
+                        <span className="text-[11px] opacity-75">
+                          Thresholds: Low &lt; {Math.round((weather.risk.thresholds?.low ?? 0.15) * 100)}% | Mod &lt; {Math.round((weather.risk.thresholds?.moderate ?? 0.45) * 100)}% | Crit &ge; {Math.round((weather.risk.thresholds?.critical ?? 0.75) * 100)}%
+                        </span>
+                      </div>
+
+                      {/* Visual Probability Bar with Threshold Markers */}
+                      <div className="relative w-full h-3 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-700 ease-out rounded-full ${
+                            (weather.risk.category || weather.risk.level) === "Critical"
+                              ? "bg-red-600"
+                              : (weather.risk.category || weather.risk.level) === "High"
+                              ? "bg-orange-500"
+                              : (weather.risk.category || weather.risk.level) === "Moderate"
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                          }`}
+                          style={{
+                            width: `${Math.min(100, Math.max(2, weather.risk.probabilityPercentage ?? weather.risk.score))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Configurable Threshold Profile Selector */}
+                    <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-1.5">
+                      <span className="text-[11px] font-medium opacity-80">
+                        Risk Sensitivity Profile:
+                      </span>
+                      <div className="inline-flex rounded-md border border-current/20 bg-white/60 dark:bg-slate-900/40 p-0.5 text-xs font-medium">
+                        {[
+                          { id: "balanced", label: "Balanced" },
+                          { id: "conservative", label: "Conservative" },
+                          { id: "high_precision", label: "Precision" },
+                        ].map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setThresholdProfile(p.id)}
+                            className={`px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer ${
+                              thresholdProfile === p.id
+                                ? "bg-blue-600 text-white font-bold shadow-xs"
+                                : "text-current hover:bg-black/5 dark:hover:bg-white/5 opacity-80"
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
                   {weather.risk.powerAdvisory && (
-                    <div className="mt-3 pt-3 border-t border-current/15 text-sm">
+                    <div className="mt-3.5 pt-3 border-t border-current/15 text-sm">
                       <span className="font-semibold">
                         Operational Directive ({weather.risk.powerAdvisory.status}):
                       </span>{" "}
