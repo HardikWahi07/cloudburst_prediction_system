@@ -19,6 +19,7 @@ import MeteorologicalChart from "./components/MeteorologicalChart";
 import ParameterAnalyzer from "./components/ParameterAnalyzer";
 import WorldRiskMap from "./components/WorldRiskMap";
 import EarlyWarningAlertCenter from "./components/EarlyWarningAlertCenter";
+import WeatherAnalyticsPanel from "./components/WeatherAnalyticsPanel";
 
 const CITY_STORAGE_KEY = "cloudburst.selectedCity";
 const THEME_STORAGE_KEY = "cloudburst.theme";
@@ -970,11 +971,19 @@ function App() {
 
         {weather && (
           <section id="forecast" className="pt-8" aria-label="Forecast patterns">
-            <MeteorologicalChart
-              hourly={weather.hourly}
-              currentTime={weather.current.time}
-              timezoneLabel={tzLabel}
+            <WeatherAnalyticsPanel
+              weather={weather}
+              activeLocation={activeLocation}
+              onRefresh={refreshWeather}
+              loading={loading}
             />
+            <div className="mt-8">
+              <MeteorologicalChart
+                hourly={weather.hourly}
+                currentTime={weather.current.time}
+                timezoneLabel={tzLabel}
+              />
+            </div>
             <HourlyForecast
               hourly={weather.hourly}
               currentTime={weather.current.time}

@@ -24,3 +24,4 @@ router.post("/:id/resolve", resolveAlertHandler);
 router.put("/:id/resolve", resolveAlertHandler);
 
 export default router;
+

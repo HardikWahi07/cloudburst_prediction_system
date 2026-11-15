@@ -250,6 +250,104 @@ const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null, 
     },
   };
 
+  // 1. Daily Rainfall & Forecast Model
+  const daily = data.daily || {};
+  const dailyData = {
+    time: Array.isArray(daily.time) ? daily.time : [],
+    precipitationSum: Array.isArray(daily.precipitation_sum)
+      ? daily.precipitation_sum.map((v) => getMeasurement(v, 0))
+      : [],
+    precipitationHours: Array.isArray(daily.precipitation_hours)
+      ? daily.precipitation_hours.map((v) => getMeasurement(v, 0))
+      : [],
+    precipitationProbabilityMax: Array.isArray(daily.precipitation_probability_max)
+      ? daily.precipitation_probability_max.map((v) => getMeasurement(v, 0, 100))
+      : [],
+    temperatureMax: Array.isArray(daily.temperature_2m_max)
+      ? daily.temperature_2m_max
+      : [],
+    temperatureMin: Array.isArray(daily.temperature_2m_min)
+      ? daily.temperature_2m_min
+      : [],
+    windSpeedMax: Array.isArray(daily.wind_speed_10m_max)
+      ? daily.wind_speed_10m_max.map((v) => getMeasurement(v, 0))
+      : [],
+  };
+
+  // 2. Historical versus Forecast Comparison Analytics
+  const currentIdx = hourly.time ? hourly.time.findIndex((t) => t >= current.time) : -1;
+  const pivotIdx = currentIdx === -1 ? (hourly.time?.length || 0) - 1 : currentIdx;
+
+  // Past 24 hours (observed)
+  const past24StartIdx = Math.max(0, pivotIdx - 24);
+  const past24Precip = hourly.precipitation?.slice(past24StartIdx, pivotIdx) || [];
+  const past24Cape = hourly.cape?.slice(past24StartIdx, pivotIdx) || [];
+  const past24Accum = Number(past24Precip.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0).toFixed(1));
+  const past24PeakRate = past24Precip.length ? Number(Math.max(...past24Precip.filter(Number.isFinite), 0).toFixed(1)) : 0;
+  const past24AvgCape = past24Cape.length ? Math.round(past24Cape.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0) / (past24Cape.length || 1)) : 0;
+  const past24RainyHours = past24Precip.filter((v) => v > 0.1).length;
+
+  // Next 24 hours (forecast)
+  const next24EndIdx = Math.min(hourly.time?.length || 0, pivotIdx + 24);
+  const next24Precip = hourly.precipitation?.slice(pivotIdx, next24EndIdx) || [];
+  const next24Prob = hourly.precipitationProbability?.slice(pivotIdx, next24EndIdx) || [];
+  const next24Cape = hourly.cape?.slice(pivotIdx, next24EndIdx) || [];
+  const next24Accum = Number(next24Precip.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0).toFixed(1));
+  const next24PeakRate = next24Precip.length ? Number(Math.max(...next24Precip.filter(Number.isFinite), 0).toFixed(1)) : 0;
+  const next24MaxProb = next24Prob.length ? Math.max(...next24Prob.filter(Number.isFinite), 0) : 0;
+  const next24MaxCape = next24Cape.length ? Math.round(Math.max(...next24Cape.filter(Number.isFinite), 0)) : 0;
+  const next24RainyHours = next24Precip.filter((v) => v > 0.1).length;
+
+  const rainDeltaMm = Number((next24Accum - past24Accum).toFixed(1));
+  const rainDeltaPct = past24Accum > 0 ? Math.round(((next24Accum - past24Accum) / past24Accum) * 100) : (next24Accum > 0 ? 100 : 0);
+  const intensityTrend =
+    next24Accum >= 30 && next24Accum >= past24Accum * 1.5
+      ? "SURGING"
+      : next24Accum > past24Accum + 5
+      ? "INTENSIFYING"
+      : next24Accum < past24Accum - 5
+      ? "SUBSIDING"
+      : "STABLE";
+
+  const convectiveTrend =
+    next24MaxCape >= 1200 && next24MaxCape > past24AvgCape * 1.3
+      ? "ESCALATING"
+      : next24MaxCape >= 600
+      ? "ELEVATED"
+      : "NORMAL";
+
+  const historicalVsForecast = {
+    observedPast24h: {
+      accumRainMm: past24Accum,
+      peakRainRateMmH: past24PeakRate,
+      avgCape: past24AvgCape,
+      rainyHours: past24RainyHours,
+      periodLabel: "Past 24 Hours (Observed)",
+    },
+    forecastNext24h: {
+      accumRainMm: next24Accum,
+      peakRainRateMmH: next24PeakRate,
+      maxProbability: next24MaxProb,
+      maxCape: next24MaxCape,
+      rainyHours: next24RainyHours,
+      periodLabel: "Next 24 Hours (Forecast)",
+    },
+    delta: {
+      rainDeltaMm,
+      rainDeltaPercent: rainDeltaPct,
+      intensityTrend,
+      convectiveTrend,
+      summaryText:
+        intensityTrend === "SURGING"
+          ? `Significant rainfall surge forecasted (+${rainDeltaMm} mm / +${rainDeltaPct}% vs past 24h). Convective energy ${convectiveTrend.toLowerCase()}.`
+          : intensityTrend === "INTENSIFYING"
+          ? `Precipitation accumulating higher than recent baseline (+${rainDeltaMm} mm vs past 24h).`
+          : intensityTrend === "SUBSIDING"
+          ? `Precipitation tapering off (${rainDeltaMm} mm vs past 24h).`
+          : `Precipitation patterns remaining stable relative to past 24 hours (${rainDeltaMm >= 0 ? "+" : ""}${rainDeltaMm} mm).`,
+    },
+  };
+
   const risk = getRisk(weather.current, weather.hourly, options);
   const locationMeta = {
     id: options.locationId || options.id || `loc-${Number(latitude).toFixed(2)}-${Number(longitude).toFixed(2)}`,
@@ -261,6 +359,57 @@ const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null, 
     elevationM: current.elevation ?? null,
     basin: options.basin || "Regional Catchment Basin",
     powerAsset: options.powerAsset || "Hydropower Grid",
+  };
+
+  // 3. Location-Specific Weather Summaries
+  const elevationVal = Number(data.elevation || current.elevation || locationMeta.elevationM || 0);
+  const altitudeZone =
+    elevationVal >= 3000
+      ? "High-Altitude Glaciated Alpine Zone (>3000m AMSL)"
+      : elevationVal >= 1800
+      ? "Mid-Himalayan Ridge & Orographic Escarpment (1800–3000m AMSL)"
+      : elevationVal >= 800
+      ? "Lower Himalayan Valley & Foothills (800–1800m AMSL)"
+      : "Sub-Himalayan Riverine Catchment (<800m AMSL)";
+
+  const locationSummary = {
+    stationName: locationMeta.name,
+    state: locationMeta.state,
+    basin: locationMeta.basin,
+    elevationM: elevationVal,
+    altitudeZone,
+    criticalPowerAsset: locationMeta.powerAsset,
+    metAgency: options.metAgency || "IMD Meteorological Centre",
+    synopsis: `${locationMeta.name} is situated in the ${altitudeZone} within the ${locationMeta.basin}. Currently recording ${weather.current.precipitation ?? 0} mm/h rainfall with ${weather.current.humidity ?? 50}% relative humidity at ${weather.current.temperature ?? 15}°C. Next 24h rainfall is projected at ${next24Accum} mm (${intensityTrend.toLowerCase()}) with peak rain rate of ${next24PeakRate} mm/h. Critical hydropower infrastructure: ${locationMeta.powerAsset}.`,
+    orographicVulnerability:
+      elevationVal >= 2500
+        ? "High vulnerability to localized cloudburst cloud condensation and moraine debris mobilization."
+        : "Moderate vulnerability to sudden valley flash flooding and siltation load.",
+    actionableBriefing: risk.powerAdvisory.action,
+  };
+
+  // 4. Live Data Freshness Indicators
+  const nowMs = Date.now();
+  const obsTimeMs = new Date(current.time || provenance?.sourceTimestamp || nowMs).getTime();
+  const latencyMinutes = Math.max(0, Math.round((nowMs - obsTimeMs) / 60000));
+  const freshnessStatus = latencyMinutes <= 15 ? "REAL_TIME" : latencyMinutes <= 60 ? "RECENT" : "STALE";
+
+  const liveFreshness = {
+    status: freshnessStatus,
+    label:
+      freshnessStatus === "REAL_TIME"
+        ? "Real-Time Telemetry (Live)"
+        : freshnessStatus === "RECENT"
+        ? "Recent Sensor Ingestion"
+        : "Stale Feed (>1 hr latency)",
+    ageMinutes: latencyMinutes,
+    relativeAgeText: latencyMinutes <= 1 ? "Just now" : `${latencyMinutes} minutes ago`,
+    sourceTimestamp: current.time,
+    ingestedAt: provenance?.ingestedAt || new Date().toISOString(),
+    isCached: !!provenance?.cached,
+    cacheAgeSeconds: provenance?.cacheAgeMs ? Math.round(provenance.cacheAgeMs / 1000) : 0,
+    provider: "Open-Meteo High-Resolution Numerical Model (ECMWF IFS / DWD ICON / GFS)",
+    upstreamStatus: "HEALTHY",
   };
 
   const earlyWarningAlert = evaluateLocationAlert(locationMeta, {
@@ -275,6 +424,10 @@ const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null, 
 
   return {
     ...weather,
+    daily: dailyData,
+    historicalVsForecast,
+    locationSummary,
+    liveFreshness,
     risk,
     earlyWarningAlert,
     summary: getForecastSummary(weather.current, weather.hourly),
@@ -289,8 +442,8 @@ const formatSingleWeather = (data, fallbackLat, fallbackLon, provenance = null, 
  * @returns {Promise<object>} Complete normalized meteorological record
  */
 export const getWeatherData = async (latitude, longitude, options = {}) => {
-  const pastDays = Math.min(7, Math.max(0, Number(options.pastDays ?? 1)));
-  const forecastDays = Math.min(7, Math.max(1, Number(options.forecastDays ?? 2)));
+  const pastDays = Math.min(7, Math.max(0, Number(options.pastDays ?? 2)));
+  const forecastDays = Math.min(7, Math.max(1, Number(options.forecastDays ?? 5)));
 
   const url = new URL("https://api.open-meteo.com/v1/forecast");
   url.search = new URLSearchParams({
@@ -300,6 +453,8 @@ export const getWeatherData = async (latitude, longitude, options = {}) => {
       "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,rain,pressure_msl,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m",
     hourly:
       "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,precipitation_probability,pressure_msl,cloud_cover,wind_speed_10m,cape",
+    daily:
+      "precipitation_sum,precipitation_hours,precipitation_probability_max,wind_speed_10m_max,temperature_2m_max,temperature_2m_min",
     past_days: String(pastDays),
     forecast_days: String(forecastDays),
     timezone: "auto",

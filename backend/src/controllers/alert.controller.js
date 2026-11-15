@@ -222,3 +222,4 @@ export async function getAlertByIdHandler(req, res) {
     });
   }
 }
+
